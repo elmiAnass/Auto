@@ -1,63 +1,108 @@
-# Feed Studio
+# Feed Studio — Canva → Google Docs
 
-Une interface simple pour transformer vos photos Canva en document de publications Instagram : **photo + caption en anglais + hashtags**, dans le bon ordre. Le fichier Word obtenu s’ouvre dans Google Docs.
+Collez le **lien d’un design Canva contenant une photo par page**. L’outil exporte les pages, les classe dans l’ordre de publication et crée un **Google Doc natif privé**. Choisissez ensuite le type de compte (hôtel, restaurant ou autre), préparez les captions en anglais et envoyez-les dans ce même document.
 
-## Commencer
+## Utilisation après activation
 
-1. [Téléchargez le projet](https://github.com/elmiAnass/Auto/archive/refs/heads/main.zip) et décompressez-le.
-2. Ouvrez **index.html** dans Chrome, Edge ou Firefox. Aucun serveur, compte développeur ni installation n’est nécessaire.
-3. Cliquez **Choisir les photos**, sélectionnez vos JPG/PNG et choisissez le type de compte : hôtel, restaurant ou autre.
-4. Vérifiez l’ordre, puis cliquez **Créer le document**. Le fichier `.docx` se télécharge.
-5. Pour l’ouvrir dans Google Docs : page d’accueil Docs → icône dossier → **Importer** → choisissez le `.docx`.
+1. Ouvrez l’application servie par le serveur Feed Studio.
+2. **Connecter Canva**, puis **Connecter Google** : autorisez vos comptes une fois par session.
+3. Collez le lien Canva, choisissez l’ordre dans **Votre feed**, puis **Créer le Google Doc depuis Canva**.
+4. Le lien du Google Doc apparaît avec l’aperçu des photos. Choisissez maintenant hôtel, restaurant ou autre.
+5. Rédigez les textes ou utilisez **Générer les captions EN**, puis **Ajouter les captions au Google Doc**.
 
-Commencez avec trois photos. Vous pouvez saisir les captions dans l’interface ou les compléter ensuite dans Google Docs. Les originaux restent sur votre appareil.
+Chaque page Canva devient une image de publication. Une maquette regroupant plusieurs photos sur une seule page ne permet pas de récupérer automatiquement ses photos originales séparées avec cette API.
 
-## Ordre du feed
+### Ordre
 
-- **Comme la maquette du feed** — défaut : disposez les photos de gauche à droite, puis de haut en bas. Le document commence par la dernière image, en bas à droite.
-- **Dans l’ordre de publication** : la première carte devient la première publication ; aucune inversion.
+- **Comme la maquette du feed** : pages numérotées de gauche à droite, puis de haut en bas ; publication en ordre inverse, départ en bas à droite.
+- **Dans l’ordre de publication** : page 1 publiée en premier, aucune inversion.
 
-Les noms sont triés naturellement à l’ajout (`01`, `02`, `10`), puis vous pouvez déplacer les cartes par glisser-déposer ou avec les flèches. Le numéro **Publication** indique l’ordre réel dans le document. Un fichier identique n’est pas ajouté deux fois, même sous un autre nom.
+Choisissez l’ordre avant l’import. Après création du Google Doc, cet ordre reste fixe pour que les textes correspondent aux bonnes images. **Nouveau feed** prépare un autre import sans supprimer les documents précédents.
 
-## Captions automatiques — optionnelles
+### Captions
 
-Ouvrez **Captions automatiques**, entrez votre clé OpenAI API et, si nécessaire, le nom et les informations confirmées de la marque. Cliquez **Générer les captions EN**.
+L’assistant facultatif reçoit chaque photo et le type de compte. Il doit écrire en anglais selon le sujet visible et les faits confirmés, sans inventer lieu précis, ingrédients, tarifs, équipements ou promotions. Ajoutez des précisions propres à une photo si nécessaire et relisez les propositions.
 
-L’assistant reçoit chaque image et le type de compte : il doit adapter la caption au sujet visible et à l’activité, sans inventer équipements, tarifs, ingrédients, lieu précis ou offres. **Précisions sur cette photo** permet d’indiquer un nom de plat, un lieu confirmé ou un détail particulier. Relisez les textes avant utilisation.
+La clé OpenAI est saisie dans **Captions automatiques** et reste dans la fenêtre. Elle n’est ni enregistrée dans le navigateur, ni transmise au serveur Feed Studio. Le clic de génération transmet les images et le brief à OpenAI, avec une facturation API distincte d’un abonnement ChatGPT.
 
-- L’API est facturée sur votre compte OpenAI ; un abonnement ChatGPT ne remplace pas le crédit API.
-- La clé reste en mémoire dans la fenêtre. Elle n’est ni enregistrée dans le navigateur, ni incluse dans le document, ni envoyée ailleurs qu’à `api.openai.com`.
-- L’import et l’export fonctionnent hors connexion. Seul un clic sur **Générer les captions EN** transmet les images et le brief à OpenAI.
-- Chaque résultat est conservé immédiatement dans la fenêtre. Si un appel échoue, corrigez le problème puis relancez : les captions déjà remplies ne sont pas remplacées. **Arrêter** interrompt la génération.
-- Pour régénérer un post, effacez sa caption. Si vous changez le type de compte, les textes précédents sont conservés et doivent être revus.
+Les champs déjà envoyés dans Google Docs ne sont plus remplacés : corrigez-les directement dans le document. Si un emplacement a été modifié dans Docs avant le premier envoi, le transfert le signale sans écraser votre texte.
 
-## Limites et conservation
+## État de la version
 
-JPG/PNG uniquement, **8 Mo par photo**, **40 Mo au total**, **60 photos maximum**. Le contenu des originaux est conservé dans le fichier Word. La limite totale laisse une marge sous la limite de conversion de Google Docs.
+Le serveur démarre et les parcours sont testés avec des services externes simulés. **Le lien Canva fourni dans la conversation n’a pas encore pu être importé réellement et aucun document Google n’a été créé dans le compte de l’utilisateur.** La configuration OAuth Canva/Google manque ; les autorisations réseau enregistrées dans le brouillon doivent aussi être appliquées.
 
-Chaque post est prévu sur une page A4. Les textes sont limités à **900 caractères, 6 lignes explicites et 5 hashtags** pour maîtriser la pagination. Les photos sont affichées plus petites si le texte est long ; les pixels originaux ne sont pas réencodés. Contrôlez la pagination après import dans Google Docs et après vos modifications.
+Un simple lien de partage n’accorde pas d’accès API au compte Canva. Les connexions ne sont activées dans l’interface que lorsque l’administrateur a configuré les deux applications OAuth.
 
-**Le travail n’est pas sauvegardé entre deux ouvertures.** Téléchargez votre document avant de fermer ou recharger la page. La clé API est effacée à la fermeture. Aucun post Instagram n’est publié par cet outil.
+## Activation par l’administrateur — une fois
 
-## Option avec intégration Google native
+Node.js **24.5 ou plus récent** ; aucune dépendance npm à installer. `index.html` est déjà construit et commité.
 
-L’ancienne version Apps Script reste disponible pour travailler directement avec Drive, Sheets et Docs. Elle demande une installation et une autorisation Google : [guide avancé](apps-script/README.md).
+Configurez les valeurs dans des paramètres d’environnement sécurisés. [.env.example](.env.example) liste les noms ; ne communiquez jamais les secrets en conversation.
 
-## Développement et vérification
+| Nom | Usage |
+| --- | --- |
+| `PUBLIC_ORIGIN` | Origine HTTPS publique du serveur, sans chemin ; HTTP local autorisé uniquement en développement |
+| `CANVA_CLIENT_ID` | Identifiant de l’intégration Canva Connect |
+| `CANVA_CLIENT_SECRET` | Secret de l’intégration Canva, utilisé uniquement côté serveur |
+| `GOOGLE_CLIENT_ID` | Identifiant du client OAuth Google de type application Web |
+| `GOOGLE_CLIENT_SECRET` | Secret du client Google, utilisé uniquement côté serveur |
 
-L’application livrée est un unique `index.html`, sans bibliothèque externe ni étape d’installation pour l’utilisateur. Sources : `web/`. Pour reconstruire après modification :
+Dans l’intégration **Canva Connect**, activez le seul scope requis : `design:content:read`. Enregistrez le callback exact :
+
+```text
+PUBLIC_ORIGIN/oauth/callback/canva
+```
+
+Dans le projet Google Cloud, activez **Google Drive API** et **Google Docs API**, configurez le consentement OAuth et le client Web. Scope : `https://www.googleapis.com/auth/drive.file`, limité aux fichiers créés ou ouverts par l’application. Callback :
+
+```text
+PUBLIC_ORIGIN/oauth/callback/google
+```
+
+Remplacez `PUBLIC_ORIGIN` dans ces exemples par l’origine réelle du serveur. En développement, utilisez une origine locale et les mêmes callbacks exacts ; les comptes de test doivent être autorisés dans les applications OAuth.
+
+Démarrage avec les variables déjà injectées :
+
+```sh
+node --use-env-proxy server/server.mjs
+```
+
+Avec un fichier `.env` local ignoré :
+
+```sh
+node --env-file=.env --use-env-proxy server/server.mjs
+```
+
+Le proxy réseau configuré est respecté. Le serveur écoute par défaut sur `127.0.0.1:3000`. Pour un déploiement derrière un proxy HTTPS, configurez le port/hôte nécessaires (`FEED_STUDIO_PORT`, `FEED_STUDIO_HOST`) et une `PUBLIC_ORIGIN` cohérente. Le code seul n’établit pas d’hébergement public ni de connexion aux comptes.
+
+Vérification interne : `/healthz` doit répondre HTTP 200. `/api/session` expose uniquement l’état des connexions, leur configuration et un jeton CSRF ; aucun secret OAuth. Tant que les deux applications ne sont pas configurées, le serveur est démarré mais l’import Canva n’est pas prêt.
+
+### Réseau requis
+
+Canva : `canva.link`, `www.canva.com`, `canva.com`, `api.canva.com`, `export-download.canva.com`. Google : `accounts.google.com`, `oauth2.googleapis.com`, `www.googleapis.com`, `docs.googleapis.com`. L’IA facultative utilise `api.openai.com` depuis le navigateur. Les destinations CDN supplémentaires éventuelles doivent être confirmées par une réponse Canva authentifiée avant ajout.
+
+## Fonctionnement et conservation
+
+- OAuth avec PKCE et état à usage unique ; tokens et images gardés uniquement en mémoire côté serveur, par session de navigateur. Les cookies sont HttpOnly, SameSite=Lax et Secure en HTTPS. Les mutations demandent un jeton CSRF.
+- Le cookie de session expire après deux heures ; les sessions inactives sont aussi purgées et disparaissent au redémarrage. Il faut alors reconnecter les comptes. Les Google Docs déjà créés restent dans Drive.
+- Les images sont intégrées dans un DOCX puis converties en Google Doc via Drive. Aucun partage public des images ni du document n’est créé par l’outil.
+- Maximum 60 pages, 8 Mo par image et 40 Mo par feed ; le cache global est borné. Les téléchargements sont restreints aux hôtes Canva en HTTPS.
+- L’export PNG sans perte conserve le rendu des pages Canva. Il ne récupère pas le fichier source original d’un élément photo.
+- Une page A4 par publication est prévue. Captions limitées à 900 caractères, 6 lignes explicites et 5 hashtags. Vérifiez la pagination dans Google Docs après conversion et après modification du texte.
+- Un nouvel import crée un nouveau document. Les modifications manuelles dans les anciens documents sont conservées. Aucun post Instagram n’est publié automatiquement.
+
+## Développement et tests
 
 ```sh
 node scripts/build.mjs
-node --test tests/*.test.cjs
-```
-
-Les tests navigateur nécessitent Python, Playwright, Chromium, Pillow et python-docx :
-
-```sh
+node --test tests/*.test.cjs tests/*.test.mjs
 python3 tests/browser_smoke.py
 ```
 
-Les tests Apps Script/API utilisent des réponses simulées. Les essais navigateur utilisent de vraies images, téléchargent le DOCX et l’ouvrent avec python-docx ; les appels IA y sont simulés. La pagination a aussi été vérifiée par conversion LibreOffice en PDF. Aucune génération IA payante ni connexion à un compte Google n’a été effectuée ici.
+Les tests Node vérifient les exports DOCX, OAuth, les adaptateurs et le serveur HTTP. Un test branche les vrais adaptateurs sur le serveur avec des réponses HTTP externes simulées. Les tests Chromium utilisent de vraies images et des téléchargements DOCX ; OAuth, Canva, Google et OpenAI y sont simulés. La pagination DOCX a aussi été contrôlée par conversion LibreOffice en PDF. Ces tests ne valident ni les autorisations de vos comptes ni la qualité d’une génération IA réelle.
 
-Résultats de cette version : **40 tests Node et 11 essais Chromium réussis**. La politique du navigateur géré dans cet environnement bloque les URL `file://` ; les essais ont donc servi le même fichier HTML par HTTP local temporaire. L’ouverture directe du fichier dans un navigateur personnel reste à confirmer. Le fichier livré inclut tout son code et ne charge aucune bibliothèque externe.
+Résultats de cette version : **79 tests Node et 15 essais Chromium réussis**. Le démarrage réel du serveur, sa page et son état de connexion ont été vérifiés ; les deux applications OAuth sont actuellement non configurées.
+
+Le navigateur géré ici bloque les URL `file://` ; les essais navigateur servent le même HTML par HTTP local temporaire. L’ouverture locale reste disponible uniquement pour l’import manuel et l’export Word, sans connexion Canva.
+
+Options conservées : [guide de l’import manuel](docs/manual-workflow.md) et [version Apps Script](apps-script/README.md).

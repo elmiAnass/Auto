@@ -99,6 +99,64 @@ test('empty fields produce editable caption/hashtag placeholders on the same pos
   assert.equal((xml.match(/pageBreakBefore/g) || []).length, 0);
 });
 
+test('custom placeholders remain distinct per post and retain their exact visible text', async () => {
+  const placeholders = [1, 2].map(number => ({
+    caption: 'Caption for post ' + String(number).padStart(2, '0') + ' — to write.',
+    hashtags: 'Hashtags for post ' + String(number).padStart(2, '0') + ' — to add.'
+  }));
+  const entries = await unzip(await buildDocument([
+    post({caption: '', hashtags: ''}), post({caption: '', hashtags: ''})
+  ], {placeholders}));
+  const xml = entries.get('word/document.xml').toString();
+  placeholders.forEach(entry => {
+    assert.equal(xml.split(entry.caption).length - 1, 1);
+    assert.equal(xml.split(entry.hashtags).length - 1, 1);
+  });
+  assert.ok(xml.indexOf(placeholders[0].caption) < xml.indexOf('<w:pageBreakBefore/>'));
+  assert.ok(xml.indexOf(placeholders[1].caption) > xml.indexOf('<w:pageBreakBefore/>'));
+  assert.ok(!xml.includes('[Write your English caption here.]'));
+  assert.deepEqual(placeholders[0], {caption: 'Caption for post 01 — to write.', hashtags: 'Hashtags for post 01 — to add.'});
+});
+
+test('actual caption and hashtags independently take precedence over custom placeholders', async () => {
+  const placeholders = [
+    {caption: 'Unused caption placeholder.', hashtags: 'Hashtags for post 01 — to add.'},
+    {caption: 'Caption for post 02 — to write.', hashtags: 'Unused hashtag placeholder.'}
+  ];
+  const entries = await unzip(await buildDocument([
+    post({caption: 'An existing caption.', hashtags: ''}),
+    post({caption: '', hashtags: '#OriginalTag'})
+  ], {placeholders}));
+  const xml = entries.get('word/document.xml').toString();
+  assert.ok(xml.includes('An existing caption.'));
+  assert.ok(xml.includes('Hashtags for post 01 — to add.'));
+  assert.ok(xml.includes('Caption for post 02 — to write.'));
+  assert.ok(xml.includes('#OriginalTag'));
+  assert.ok(!xml.includes('Unused caption placeholder.'));
+  assert.ok(!xml.includes('Unused hashtag placeholder.'));
+});
+
+test('custom placeholder text uses XML escaping without changing meaningful characters', async () => {
+  const entries = await unzip(await buildDocument([post({caption: '', hashtags: ''})], {
+    placeholders: [{caption: 'Caption <01> & "brand" — to write.', hashtags: "Hashtags '01' — to add."}]
+  }));
+  const xml = entries.get('word/document.xml').toString();
+  assert.ok(xml.includes('Caption &lt;01&gt; &amp; &quot;brand&quot; — to write.'));
+  assert.ok(xml.includes('Hashtags &apos;01&apos; — to add.'));
+});
+
+test('rejects misaligned or malformed custom placeholders before exporting', async () => {
+  const valid = {caption: 'Caption — to write.', hashtags: 'Hashtags — to add.'};
+  const malformed = [null, {}, 'text', [], [valid, valid], [null], [{}], new Array(1),
+    [{...valid, caption: ''}], [{...valid, hashtags: '   '}],
+    [{...valid, caption: 'A'.repeat(201)}], [{...valid, hashtags: 12}],
+    [{...valid, caption: 'First\nSecond'}], [{...valid, caption: 'Caption\u0000'}],
+    [{...valid, hashtags: 'Tag\uD800'}]];
+  for (const placeholders of malformed) {
+    await assert.rejects(buildDocument([post()], {placeholders}), /[Pp]laceholder/);
+  }
+});
+
 test('escapes text and attributes, filters invalid XML characters, and preserves emoji and line breaks', async () => {
   const entries = await unzip(await buildDocument([post({
     name: 'A "courtyard" <view> & detail\u0000.png', caption: 'A & B <sun> "warm"\nTravel 🌴\u0000\u000B\uFFFF\uD800',

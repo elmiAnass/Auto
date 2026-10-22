@@ -22,7 +22,7 @@ import unittest
 from pathlib import Path
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from PIL import Image
 from docx import Document
@@ -187,6 +187,64 @@ class BrowserSmoke(unittest.TestCase):
         self.page.route("https://api.openai.com/v1/responses", handler)
         return calls
 
+    def load_connected_mode(self, *, configured=True, job_error=None):
+        """Mock same-origin server APIs while keeping real client DOM/image loading."""
+        calls = []
+        document = {"id": "doc123", "url": "https://docs.google.com/document/d/doc123/edit"}
+        metadata = [{"id": f"p{index}", "name": f"page-{index:02d}.jpg", "mime": "image/jpeg", "sourceIndex": index}
+                    for index in range(1, 4)]
+
+        def api_handler(route):
+            request = route.request
+            endpoint = urlsplit(request.url).path
+            entry = {"path": endpoint, "method": request.method, "headers": request.headers}
+            if request.method == "POST":
+                entry["body"] = request.post_data_json
+            calls.append(entry)
+            if endpoint == "/api/session":
+                body = {"csrfToken": "test-csrf", "configured": {"canva": configured, "google": configured},
+                        "connected": {"canva": configured, "google": configured}}
+            elif endpoint == "/api/import" and request.method == "POST":
+                body = {"jobId": "job123"}
+            elif endpoint == "/api/jobs/job123":
+                body = {"id": "job123", "status": "error", "error": job_error} if job_error else {
+                    "id": "job123", "status": "ready", "title": "Canva feed", "orderMode": "GRID",
+                    "document": document, "posts": metadata,
+                }
+            elif re.fullmatch(r"/api/jobs/job123/images/p[123]", endpoint):
+                number = int(endpoint[-1])
+                route.fulfill(status=200, content_type="image/jpeg", body=self.images[number - 1].read_bytes())
+                return
+            elif endpoint == "/api/jobs/job123/captions" and request.method == "POST":
+                posts = entry["body"]["posts"]
+                body = {"updated": 6, "document": document, "posts": [
+                    {"id": post["id"], "syncedCaption": post["caption"], "syncedHashtags": post["hashtags"]}
+                    for post in posts
+                ]}
+            else:
+                route.fulfill(status=404, content_type="application/json", body=json.dumps({"error": "Unexpected test endpoint"}))
+                return
+            route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+
+        marker = 'name="feed-studio-mode" content="offline"'
+        html = APP.read_text()
+        self.assertEqual(html.count(marker), 1, "Expected the standalone app's explicit mode marker")
+        html = html.replace(marker, 'name="feed-studio-mode" content="server"')
+        self.page.route("**/api/**", api_handler)
+        self.page.route(self.url, lambda route: route.fulfill(status=200, content_type="text/html", body=html))
+        self.page.reload(wait_until="load")
+        if configured:
+            expect(self.page.locator("#canva-import")).to_be_enabled()
+        else:
+            expect(self.page.locator("#canva-status")).to_contain_text("administrateur")
+        return calls
+
+    def start_canva_import(self):
+        self.page.locator("#project-title").fill("Canva feed")
+        self.page.locator("#order-mode").select_option("GRID")
+        self.page.locator("#canva-url").fill("https://www.canva.com/design/DAExample/edit")
+        self.page.locator("#canva-import").click()
+
     def test_01_standalone_page_loads_without_network_dependencies(self):
         self.assertFalse(any(url != self.url and url.startswith(("https://", "http://")) for url in self.requests), self.requests)
         self.assertEqual(self.page.locator("#api-key").input_value(), "")
@@ -326,6 +384,87 @@ class BrowserSmoke(unittest.TestCase):
         expect(self.cards).to_have_count(0)
         expect(self.page.locator("#export-doc")).to_be_disabled()
         expect(self.page.locator("#grid-preview-section")).to_be_hidden()
+
+    def test_12_connected_canva_import_creates_doc_before_vision_and_syncs_stable_ids(self):
+        backend = self.load_connected_mode()
+        vision = self.mock_captions()
+        self.start_canva_import()
+        expect(self.page.locator("#native-document")).to_be_visible(timeout=10000)
+        expect(self.page.locator("#native-document-link")).to_have_attribute(
+            "href", "https://docs.google.com/document/d/doc123/edit")
+        expect(self.cards).to_have_count(3)
+        self.assertEqual(vision, [], "Canva import must not automatically generate captions")
+        imported = next(call for call in backend if call["path"] == "/api/import")
+        self.assertEqual(imported["body"], {"url": "https://www.canva.com/design/DAExample/edit", "orderMode": "GRID", "title": "Canva feed"})
+        self.assertEqual(imported["headers"].get("x-csrf-token"), "test-csrf")
+        for index in range(3):
+            card = self.cards.nth(index)
+            self.assertEqual(card.get_attribute("data-post-id"), f"p{index + 1}")
+            expect(card.locator('textarea[data-field="caption"]')).to_have_value("")
+            expect(card.locator('textarea[data-field="hashtags"]')).to_have_value("")
+            expect(card.locator(".remove-button")).to_be_disabled()
+            for button in card.locator(".move-controls button").all():
+                expect(button).to_be_disabled()
+        expect(self.page.locator("#order-mode")).to_be_disabled()
+        expect(self.page.locator("#photo-input")).to_be_disabled()
+        expect(self.page.locator("#account-type")).to_be_enabled()
+        expect(self.page.locator("#sync-google-doc")).to_be_disabled()
+
+        self.page.locator("#account-type").select_option("restaurant")
+        self.connect_key()
+        self.page.locator("#generate-captions").click()
+        expect(self.cards.nth(0).locator('textarea[data-field="caption"]')).to_have_value(re.compile("English caption"), timeout=10000)
+        self.assertEqual(len(vision), 3)
+        self.assertTrue(all("restaurant" in json.dumps(payload) for payload in vision))
+        expected_posts = [{"id": f"p{index + 1}",
+                           "caption": self.cards.nth(index).locator('textarea[data-field="caption"]').input_value(),
+                           "hashtags": self.cards.nth(index).locator('textarea[data-field="hashtags"]').input_value()}
+                          for index in range(3)]
+        expect(self.page.locator("#sync-google-doc")).to_be_enabled()
+        self.page.locator("#sync-google-doc").click()
+        expect(self.page.locator("#canva-status")).to_contain_text("Textes envoyés", timeout=10000)
+        synced = next(call for call in backend if call["path"] == "/api/jobs/job123/captions")
+        self.assertEqual(synced["body"], {"posts": expected_posts})
+        self.assertEqual(synced["headers"].get("x-csrf-token"), "test-csrf")
+        for card in self.cards.all():
+            expect(card.locator('textarea[data-field="caption"]')).to_be_disabled()
+            expect(card.locator('textarea[data-field="hashtags"]')).to_be_disabled()
+        self.assertNotIn("test-csrf", self.page.locator("body").inner_text())
+        self.assertEqual(self.page.locator('input[id*="client-secret"],input[name*="client_secret"],input[id*="access-token"]').count(), 0)
+        self.page.screenshot(path=str(ARTIFACTS / "connected-synced.png"), full_page=True)
+
+    def test_13_unconfigured_server_disables_connections_and_import(self):
+        backend = self.load_connected_mode(configured=False)
+        expect(self.page.locator("#connect-canva")).to_be_disabled()
+        expect(self.page.locator("#connect-google")).to_be_disabled()
+        expect(self.page.locator("#canva-import")).to_be_disabled()
+        expect(self.page.locator("#native-document")).to_be_hidden()
+        self.assertEqual([call["path"] for call in backend], ["/api/session"])
+
+    def test_14_failed_canva_job_does_not_claim_a_google_document(self):
+        self.load_connected_mode(job_error="Canva export refused for this design.")
+        self.start_canva_import()
+        expect(self.page.locator("#canva-status")).to_contain_text("Canva export refused", timeout=10000)
+        expect(self.page.locator("#native-document")).to_be_hidden()
+        expect(self.page.locator("#native-document-link")).not_to_have_attribute("href", re.compile("docs.google.com"))
+        expect(self.cards).to_have_count(0)
+        expect(self.page.locator("#canva-import")).to_be_enabled()
+
+    def test_15_manual_caption_enables_connected_sync_and_locks_only_synced_fields(self):
+        backend = self.load_connected_mode()
+        self.start_canva_import()
+        expect(self.cards).to_have_count(3)
+        expect(self.page.locator("#native-document")).to_be_visible()
+        expect(self.page.locator("#sync-google-doc")).to_be_disabled()
+        self.cards.nth(0).locator('textarea[data-field="caption"]').fill("A reviewed caption written by hand.")
+        expect(self.page.locator("#sync-google-doc")).to_be_enabled()
+        self.page.locator("#sync-google-doc").click()
+        expect(self.page.locator("#canva-status")).to_contain_text("Textes envoyés", timeout=10000)
+        synced = next(call for call in backend if call["path"] == "/api/jobs/job123/captions")
+        self.assertEqual(synced["body"]["posts"][0], {"id": "p1", "caption": "A reviewed caption written by hand.", "hashtags": ""})
+        expect(self.cards.nth(0).locator('textarea[data-field="caption"]')).to_be_disabled()
+        expect(self.cards.nth(0).locator('textarea[data-field="hashtags"]')).to_be_enabled()
+        expect(self.cards.nth(1).locator('textarea[data-field="caption"]')).to_be_enabled()
 
 
 if __name__ == "__main__":

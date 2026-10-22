@@ -101,6 +101,27 @@
     return {caption: caption, hashtags: tags.join(' ')};
   }
 
+  function validatePlaceholders(placeholders, count) {
+    if (placeholders === undefined) return null;
+    if (!Array.isArray(placeholders) || placeholders.length !== count) {
+      throw new Error('Placeholders must contain exactly one entry per photo.');
+    }
+    Array.from(placeholders).forEach(function (entry, index) {
+      if (!entry || typeof entry !== 'object') throw new Error('Photo ' + (index + 1) + ': placeholder text is missing.');
+      ['caption', 'hashtags'].forEach(function (field) {
+        var value = entry[field];
+        var invalidCharacter = typeof value === 'string' && Array.from(value).some(function (character) {
+          var code = character.codePointAt(0);
+          return code < 32 || (code >= 0xD800 && code <= 0xDFFF) || code === 0xFFFE || code === 0xFFFF;
+        });
+        if (typeof value !== 'string' || !value.trim() || value.length > 200 || invalidCharacter) {
+          throw new Error('Photo ' + (index + 1) + ': ' + field + ' placeholder must be a nonempty single-line string of at most 200 valid characters.');
+        }
+      });
+    });
+    return placeholders;
+  }
+
   function run(text, bold) {
     return '<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="22"/>' +
       (bold ? '<w:b/>' : '') + '</w:rPr>' + String(text).split('\n').map(function (line, i) {
@@ -145,6 +166,13 @@
     if (!Array.isArray(posts) || !posts.length || posts.length > 60) throw new Error('Choose between 1 and 60 photos.');
     options = options || {};
     var text = posts.map(validatePost);
+    var placeholders = validatePlaceholders(options.placeholders, posts.length);
+    var displayed = text.map(function (entry, index) {
+      return {
+        caption: entry.caption || (placeholders ? placeholders[index].caption : '[Write your English caption here.]'),
+        hashtags: entry.hashtags || (placeholders ? placeholders[index].hashtags : '[Add hashtags here.]')
+      };
+    });
     var xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
     var document = xml + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
       'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
@@ -159,11 +187,11 @@
       relationships += '<Relationship Id="rIdImage' + number + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="' + imagePath + '"/>';
       document += '<w:p><w:pPr>' + (index ? '<w:pageBreakBefore/>' : '') +
         '<w:keepNext/><w:spacing w:before="0" w:after="160"/></w:pPr>' + run('POST ' + String(number).padStart(2, '0'), true) + '</w:p>';
-      document += drawing(post, index, text[index]);
+      document += drawing(post, index, displayed[index]);
       document += paragraph('Caption (English)', true, 120, 80);
-      document += paragraph(text[index].caption || '[Write your English caption here.]', false, 0, 180);
+      document += paragraph(displayed[index].caption, false, 0, 180);
       document += paragraph('Hashtags', true, 0, 80);
-      document += paragraph(text[index].hashtags || '[Add hashtags here.]', false, 0, 0);
+      document += paragraph(displayed[index].hashtags, false, 0, 0);
     });
     document += '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="720" w:right="840" w:bottom="720" w:left="840" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr></w:body></w:document>';
     relationships += '</Relationships>';

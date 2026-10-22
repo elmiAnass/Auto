@@ -4,11 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src blob: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://api.openai.com; base-uri 'none'; form-action 'none'">
+  <meta name="feed-studio-mode" content="offline">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' blob: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self' https://api.openai.com; base-uri 'none'; form-action 'none'">
   <title>Feed Studio — vos photos vers Google Docs</title>
   <style>:root{--paper:#f7f4ef;--white:#fffefb;--ink:#292c29;--muted:#77776f;--line:#e3dfd6;--accent:#763d40;--accent-dark:#5b2b30;--green:#2f6550;--radius:18px;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--paper);font-synthesis:none}
 *{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:var(--accent);text-underline-offset:3px}button:disabled{cursor:default;opacity:.42}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #b68476;outline-offset:3px}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:9px;background:var(--white);color:var(--ink);padding:11px 12px;font-size:14px}select{padding-right:26px}textarea{resize:vertical;line-height:1.5;min-height:65px}input::placeholder,textarea::placeholder{color:#99988e}label{display:block;font-size:12px;font-weight:650;margin:19px 0 8px}small{font-size:11px;color:var(--muted);font-weight:400}h1,h2,h3,p{margin:0}.topbar{height:85px;max-width:1280px;margin:auto;padding:0 42px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.wordmark{font-size:24px;font-weight:750;text-decoration:none;color:var(--ink);letter-spacing:-1px;display:flex;align-items:baseline}.wordmark span{font-weight:400}.wordmark i{height:7px;width:7px;border-radius:50%;background:var(--accent);margin-left:5px}.topnote{font-size:10px;letter-spacing:2px;color:var(--muted)}main{max-width:1280px;padding:0 42px;margin:auto}.intro{padding:55px 0 38px;max-width:690px}.eyebrow{display:block;color:var(--accent);letter-spacing:2px;font-size:10px;font-weight:750;margin-bottom:17px}h1{font-family:Georgia,"Times New Roman",serif;font-size:clamp(32px,4vw,51px);line-height:1.13;letter-spacing:-1.6px;font-weight:400}.intro p{color:var(--muted);font-size:14px;max-width:560px;line-height:1.8;margin-top:18px}.workspace{display:grid;grid-template-columns:305px minmax(0,1fr);gap:26px;align-items:start}.panel{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:25px}.settings{position:sticky;top:20px}.section-title{display:flex;gap:10px;align-items:center}.section-title h2{font-size:16px;letter-spacing:-.3px;font-weight:650}.step{display:inline-grid;place-items:center;height:27px;width:27px;font-size:10px;border:1px solid #d8cbc1;border-radius:50%;color:var(--accent);font-weight:700}.hint{color:var(--muted);font-size:11px;line-height:1.65;margin-top:9px}.ai-settings{margin-top:24px;border-top:1px solid var(--line);padding-top:19px}.ai-settings summary{font-size:12px;font-weight:650;cursor:pointer;line-height:1.7}.ai-settings summary span{font-size:10px;font-weight:400;color:var(--muted);margin-left:4px}.ai-settings[open] summary{margin-bottom:12px}.privacy-note{border-top:1px solid var(--line);margin-top:23px;padding-top:17px;display:flex;align-items:start;gap:10px;color:var(--muted)}.privacy-note span{color:var(--green)}.privacy-note p{font-size:10px;line-height:1.7}.upload-panel{transition:border-color .15s,background .15s}.upload-panel.dragging{border-color:var(--accent);background:#f9efeb}#photo-count{margin-left:auto;font-size:11px;color:var(--muted);background:var(--paper);border-radius:20px;padding:6px 10px}.upload-body{text-align:center;padding:22px 10px 3px}.upload-icon{display:inline-grid;place-items:center;font-size:27px;color:var(--accent);width:45px;height:45px;border:1px solid #e5d9d1;border-radius:14px;margin-bottom:14px}.upload-body h3{font-size:16px;font-weight:600}.upload-body>p:not(.hint){font-size:12px;color:var(--muted);margin-top:7px}.button{display:inline-flex;align-items:center;justify-content:center;gap:15px;border-radius:9px;padding:12px 18px;font-size:12px;font-weight:600;min-height:43px;border:1px solid transparent;transition:background .15s}.button-primary{background:var(--accent);color:#fff}.button-primary:hover:enabled{background:var(--accent-dark)}.button-secondary{background:var(--white);border-color:#d5cfc3;color:var(--ink)}.button-secondary:hover:enabled{background:var(--paper)}.file-button{display:inline-flex;margin:18px 0 0;position:relative;cursor:pointer;overflow:hidden}.file-button input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0}.file-button:focus-within{outline:3px solid #b68476;outline-offset:3px}.feed-toolbar{display:flex;align-items:center;gap:15px;justify-content:space-between;padding:22px 0 15px}.feed-toolbar p{font-size:10px;color:var(--muted);line-height:1.5}.text-button{font-size:11px;border:0;background:transparent;padding:6px 0;color:var(--accent);white-space:nowrap}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.card{min-width:0;background:var(--white);border:1px solid var(--line);border-radius:13px;overflow:hidden}.card[draggable="true"] .photo-wrap{cursor:grab}.card.drag-over{outline:2px solid var(--accent)}.photo-wrap{position:relative;aspect-ratio:4/4.3;background:#e8e4db}.photo-wrap img{width:100%;height:100%;object-fit:cover;display:block}.position-badge{position:absolute;left:9px;top:9px;background:#fffefbe8;border-radius:5px;padding:5px 7px;font-size:10px;font-weight:700}.remove-button{position:absolute;right:8px;top:8px;border:0;background:#fffefbe8;width:25px;height:25px;border-radius:50%;font-size:18px;line-height:1;color:#4b4742}.card-body{padding:12px}.card-topline{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-bottom:5px}.publication-badge{color:var(--accent);font-size:9px;text-transform:uppercase;font-weight:700;letter-spacing:.6px}.move-controls{display:flex;gap:4px}.move-controls button{border:1px solid var(--line);border-radius:4px;background:none;min-width:25px;min-height:24px;font-size:13px;color:var(--ink)}.file-name{font-size:10px;color:var(--muted);white-space:nowrap;text-overflow:ellipsis;overflow:hidden;margin:6px 0 12px}.card label{font-size:10px;margin:12px 0 5px}.card textarea{font-size:11px;padding:8px;min-height:70px;background:#fbfaf6}.card textarea[data-field="hashtags"]{min-height:50px}.card details{border-top:1px solid var(--line);margin-top:12px;padding-top:9px}.card summary{font-size:10px;color:var(--muted);cursor:pointer}.card-notice{font-size:9px;color:var(--green);line-height:1.5;margin-top:9px}.empty-state{display:flex;align-items:center;justify-content:center;gap:22px;min-height:180px;border:1px dashed var(--line);border-radius:13px;color:var(--muted);margin-bottom:23px}.empty-state p{font-size:12px;line-height:1.8}.empty-grid{display:grid;grid-template-columns:repeat(3,18px);gap:4px;transform:rotate(-6deg)}.empty-grid i{width:18px;height:23px;border-radius:3px;background:#e1d6cb}.empty-grid i:nth-child(2n){background:#d4bcb0}.empty-grid i:nth-child(3n){background:#c7cec1}.export-panel{margin-top:23px}.export-description{font-size:12px;color:var(--muted);line-height:1.7;margin:14px 0 20px}.actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.actions .button span{font-size:15px}#status{font-size:12px;line-height:1.7;border-top:1px solid var(--line);margin-top:19px;padding-top:15px;white-space:pre-line;overflow-wrap:anywhere}#status[data-kind="error"]{color:#9d3636}#status[data-kind="success"]{color:var(--green)}.download-result{margin-top:15px;background:#f0f3eb;border:1px solid #dce5d4;border-radius:10px;padding:15px}.download-link{display:inline-block;font-size:13px;font-weight:650;cursor:pointer}.download-result p{font-size:11px;line-height:1.8;margin-top:8px}footer{display:flex;justify-content:space-between;gap:20px;color:var(--muted);font-size:10px;border-top:1px solid var(--line);padding:23px 0 32px;margin-top:45px}footer span{text-align:right}[hidden]{display:none!important}
 .grid-preview-section{margin-top:20px}.grid-preview-section h3{font-size:13px;font-weight:600}.grid-preview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;max-width:330px;margin:18px auto 0}.grid-preview>div{position:relative;aspect-ratio:4/5;background:#e8e4db}.grid-preview img{width:100%;height:100%;object-fit:cover;display:block}.grid-preview span{position:absolute;left:5px;top:5px;font-size:9px;background:#fffefbe8;padding:3px 5px;border-radius:3px}.grid-preview-section .hint{margin-top:5px}
+.canva-panel{margin-bottom:26px}.canva-panel>label{max-width:800px}.canva-panel>input{max-width:800px}.canva-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:17px}.connection-badge{margin-left:auto;font-size:10px;color:var(--muted)}.connection-badge.connected{color:var(--green)}.native-document{border-top:1px solid var(--line);margin-top:18px;padding-top:18px}.native-document>a{font-size:14px;font-weight:650}.native-document p{font-size:12px;color:var(--muted);line-height:1.7;max-width:700px;margin:10px 0 15px}.manual-import>summary{font-size:12px;color:var(--muted);cursor:pointer;padding:5px 0 15px}.manual-import>summary span{font-size:10px}.manual-import:not([open])>summary{padding-bottom:0}
+.error-message{color:#9d3636}.canva-panel .section-title{flex-wrap:wrap}.native-document .button{max-width:100%}
 @media(max-width:1000px){.workspace{grid-template-columns:260px minmax(0,1fr);gap:18px}.panel{padding:20px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.topbar,main{padding-left:28px;padding-right:28px}}
 @media(max-width:720px){.topbar{height:70px;padding:0 20px}.topnote{font-size:8px;letter-spacing:1px}.wordmark{font-size:22px}main{padding:0 18px}.intro{padding:35px 0 27px}h1{font-size:36px}.intro p{font-size:13px}.workspace{display:flex;flex-direction:column;gap:20px}.settings{position:static;width:100%}.main-panel{width:100%}.panel{border-radius:14px}.cards{gap:10px}.card-body{padding:10px}.card textarea{font-size:12px}.feed-toolbar p{font-size:10px}.export-panel .actions{flex-direction:column;align-items:stretch}.export-panel .button{width:100%}.photo-wrap{aspect-ratio:4/4.5}.publication-badge{font-size:8px;letter-spacing:0}.empty-state{gap:16px;padding:18px}.empty-state p{font-size:11px}footer{font-size:9px;margin-top:30px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
@@ -17,7 +20,15 @@
 <body>
   <header class="topbar"><a class="wordmark" href="#">Feed<span>Studio</span><i></i></a><span class="topnote">CANVA → GOOGLE DOCS</span></header>
   <main>
-    <section class="intro"><span class="eyebrow">VOTRE PROCHAIN FEED, PRÊT À RELIRE</span><h1>Les photos sont prêtes.<br>Préparez vos publications.</h1><p>Ajoutez vos images, vérifiez l’ordre et récupérez un document avec une photo, une caption et des hashtags par publication.</p></section>
+    <section class="intro"><span class="eyebrow">VOTRE PROCHAIN FEED, PRÊT À RELIRE</span><h1>Un lien Canva.<br>Votre feed dans Google Docs.</h1><p>Importez les pages de votre design, créez le document, puis choisissez le type de compte pour préparer vos captions en anglais.</p></section>
+    <section class="panel canva-panel" aria-label="Importer un lien Canva">
+      <div class="section-title"><span class="step">C</span><h2>Votre design Canva</h2><span id="connection-badge" class="connection-badge">Connexions à vérifier</span></div>
+      <p class="hint">Une photo par page Canva. Les pages sont exportées, mises dans l’ordre choisi et ajoutées à un Google Doc privé.</p>
+      <label for="canva-url">Lien du design</label><input id="canva-url" type="url" autocomplete="off" placeholder="https://www.canva.com/design/… ou https://canva.link/…">
+      <div class="canva-actions"><button id="connect-canva" class="button button-secondary" disabled>Connecter Canva</button><button id="connect-google" class="button button-secondary" disabled>Connecter Google</button><button id="canva-import" class="button button-primary" disabled>Créer le Google Doc depuis Canva</button><button id="new-canva-feed" class="text-button" hidden>Nouveau feed</button></div>
+      <p id="canva-status" class="hint" role="status" aria-live="polite">Vérification des connexions…</p>
+      <div id="native-document" class="native-document" hidden><a id="native-document-link" target="_blank" rel="noopener noreferrer">Ouvrir le Google Doc</a><p>Le document est créé. Choisissez maintenant hôtel, restaurant ou autre pour préparer les captions. Après leur envoi, corrigez les textes directement dans Google Docs.</p><button id="sync-google-doc" class="button button-secondary" disabled>Ajouter les captions au Google Doc</button></div>
+    </section>
     <div class="workspace">
       <aside class="panel settings">
         <div class="section-title"><span class="step">01</span><h2>Votre feed</h2></div>
@@ -35,13 +46,15 @@
           <label for="required-hashtags">Hashtags de marque <small>facultatif</small></label><input id="required-hashtags" maxlength="200" placeholder="#VotreMarque">
           <label for="ai-model">Modèle API</label><input id="ai-model" value="gpt-4.1-mini" maxlength="100" autocomplete="off">
         </details>
-        <div class="privacy-note"><span aria-hidden="true">◈</span><p>L’import et l’export fonctionnent hors connexion. La génération IA est facultative.</p></div>
+        <div class="privacy-note"><span aria-hidden="true">◈</span><p>Canva et Google demandent une connexion. L’import manuel et l’export Word restent disponibles hors connexion.</p></div>
       </aside>
       <section class="main-panel" aria-label="Photos et publications">
+        <details class="manual-import"><summary>Importer des fichiers manuellement <span>optionnel</span></summary>
         <div class="panel upload-panel" id="drop-zone">
           <div class="section-title"><span class="step">02</span><h2>Vos photos</h2><output id="photo-count">0 photo</output></div>
           <div class="upload-body"><span class="upload-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3m-5 5 5-5 5 5M4 16v4h16v-4"/></svg></span><h3>Glissez vos photos ici</h3><p>ou choisissez les images exportées de Canva</p><label class="button button-secondary file-button" for="photo-input">Choisir les photos<input id="photo-input" type="file" accept="image/jpeg,image/png" multiple></label><p class="hint">JPG / PNG · 8 Mo par photo · 40 Mo par feed · 60 photos max.</p></div>
         </div>
+        </details>
         <section id="grid-preview-section" class="panel grid-preview-section" hidden aria-label="Aperçu de la grille Instagram"><h3>Aperçu de la grille Instagram</h3><p class="hint">Les nouvelles publications sur le profil, hors posts épinglés.</p><div id="grid-preview" class="grid-preview"></div></section>
         <div class="feed-toolbar"><p id="grid-label">Maquette du feed · déplacez les cartes pour ajuster l’ordre</p><button class="text-button" id="clear-photos" disabled>Tout retirer</button></div>
         <div id="cards" class="cards" aria-label="Photos sélectionnées"></div>
@@ -161,6 +174,27 @@
     return {caption: caption, hashtags: tags.join(' ')};
   }
 
+  function validatePlaceholders(placeholders, count) {
+    if (placeholders === undefined) return null;
+    if (!Array.isArray(placeholders) || placeholders.length !== count) {
+      throw new Error('Placeholders must contain exactly one entry per photo.');
+    }
+    Array.from(placeholders).forEach(function (entry, index) {
+      if (!entry || typeof entry !== 'object') throw new Error('Photo ' + (index + 1) + ': placeholder text is missing.');
+      ['caption', 'hashtags'].forEach(function (field) {
+        var value = entry[field];
+        var invalidCharacter = typeof value === 'string' && Array.from(value).some(function (character) {
+          var code = character.codePointAt(0);
+          return code < 32 || (code >= 0xD800 && code <= 0xDFFF) || code === 0xFFFE || code === 0xFFFF;
+        });
+        if (typeof value !== 'string' || !value.trim() || value.length > 200 || invalidCharacter) {
+          throw new Error('Photo ' + (index + 1) + ': ' + field + ' placeholder must be a nonempty single-line string of at most 200 valid characters.');
+        }
+      });
+    });
+    return placeholders;
+  }
+
   function run(text, bold) {
     return '<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="22"/>' +
       (bold ? '<w:b/>' : '') + '</w:rPr>' + String(text).split('\n').map(function (line, i) {
@@ -205,6 +239,13 @@
     if (!Array.isArray(posts) || !posts.length || posts.length > 60) throw new Error('Choose between 1 and 60 photos.');
     options = options || {};
     var text = posts.map(validatePost);
+    var placeholders = validatePlaceholders(options.placeholders, posts.length);
+    var displayed = text.map(function (entry, index) {
+      return {
+        caption: entry.caption || (placeholders ? placeholders[index].caption : '[Write your English caption here.]'),
+        hashtags: entry.hashtags || (placeholders ? placeholders[index].hashtags : '[Add hashtags here.]')
+      };
+    });
     var xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
     var document = xml + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
       'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
@@ -219,11 +260,11 @@
       relationships += '<Relationship Id="rIdImage' + number + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="' + imagePath + '"/>';
       document += '<w:p><w:pPr>' + (index ? '<w:pageBreakBefore/>' : '') +
         '<w:keepNext/><w:spacing w:before="0" w:after="160"/></w:pPr>' + run('POST ' + String(number).padStart(2, '0'), true) + '</w:p>';
-      document += drawing(post, index, text[index]);
+      document += drawing(post, index, displayed[index]);
       document += paragraph('Caption (English)', true, 120, 80);
-      document += paragraph(text[index].caption || '[Write your English caption here.]', false, 0, 180);
+      document += paragraph(displayed[index].caption, false, 0, 180);
       document += paragraph('Hashtags', true, 0, 80);
-      document += paragraph(text[index].hashtags || '[Add hashtags here.]', false, 0, 0);
+      document += paragraph(displayed[index].hashtags, false, 0, 0);
     });
     document += '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="720" w:right="840" w:bottom="720" w:left="840" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr></w:body></w:document>';
     relationships += '</Relationships>';
@@ -251,9 +292,202 @@
   return {buildDocument: buildDocument, fittedImage: fittedImage, xmlText: xmlText};
 }));
 </script>
+  <script>(function (root) {
+  'use strict';
+  root.CanvaBridge = {attach: function (app) {
+    var $ = function (id) { return document.getElementById(id); };
+    var session = null, job = null, currentBusy = false;
+    var marker = document.querySelector('meta[name="feed-studio-mode"]');
+    var serverMode = marker && marker.content === 'server';
+    var stages = {
+      resolving: 'Ouverture du design Canva…', exporting: 'Export des pages Canva…',
+      downloading: 'Récupération des images…', creating: 'Création du Google Doc…',
+      uploading: 'Création du Google Doc…', ready: 'Google Doc créé.'
+    };
+
+    function message(text, error) {
+      $('canva-status').textContent = text;
+      $('canva-status').classList.toggle('error-message', Boolean(error));
+    }
+
+    async function api(path, options) {
+      options = options || {};
+      var headers = {'Accept': 'application/json'};
+      if (options.method && options.method !== 'GET') {
+        headers['Content-Type'] = 'application/json';
+        headers['X-CSRF-Token'] = session ? session.csrfToken : '';
+      }
+      var response;
+      try {
+        response = await fetch(path, {method: options.method || 'GET', credentials: 'same-origin',
+          headers: headers, body: options.body ? JSON.stringify(options.body) : undefined,
+          redirect: 'error', cache: 'no-store'});
+      } catch (_) { throw new Error('Le serveur est inaccessible. Réessayez sans fermer cette fenêtre.'); }
+      var body;
+      try { body = await response.json(); } catch (_) { throw new Error('Réponse du serveur illisible.'); }
+      if (!response.ok) throw new Error(typeof body.error === 'string' ? body.error : 'Action impossible (HTTP ' + response.status + ').');
+      return body;
+    }
+
+    function documentLink(document) {
+      var url = new URL(document.url);
+      if (url.protocol !== 'https:' || url.hostname !== 'docs.google.com') throw new Error('Lien Google Docs non valide.');
+      $('native-document-link').href = url.href;
+      $('native-document').hidden = false;
+    }
+
+    function render(busy) {
+      currentBusy = busy;
+      var configured = session && session.configured;
+      var connected = session && session.connected;
+      ['canva', 'google'].forEach(function (provider) {
+        var button = $('connect-' + provider);
+        var name = provider === 'canva' ? 'Canva' : 'Google';
+        button.textContent = connected && connected[provider] ? name + ' connecté' : 'Connecter ' + name;
+        button.disabled = busy || !configured || !configured[provider] || Boolean(connected && connected[provider]);
+      });
+      var both = connected && connected.canva && connected.google;
+      $('canva-import').disabled = busy || !both;
+      $('connection-badge').textContent = both ? 'Canva + Google connectés' : serverMode ? 'Connexion des comptes' : 'Serveur connecté nécessaire';
+      $('connection-badge').classList.toggle('connected', Boolean(both));
+      $('new-canva-feed').hidden = !job;
+      $('new-canva-feed').disabled = busy;
+      $('canva-url').disabled = busy;
+      $('sync-google-doc').disabled = busy || !job || !app.getPosts().some(function (post) { return post.caption.trim() || post.hashtags.trim(); });
+    }
+
+    function restoreSynced(metadata) {
+      var byId = new Map((metadata || []).map(function (post) { return [post.id, post]; }));
+      app.getPosts().forEach(function (post) {
+        var saved = byId.get(post.id);
+        if (!saved) return;
+        post.syncedCaption = saved.syncedCaption || '';
+        post.syncedHashtags = saved.syncedHashtags || '';
+        if (post.syncedCaption) post.caption = post.syncedCaption;
+        if (post.syncedHashtags) post.hashtags = post.syncedHashtags;
+      });
+    }
+
+    async function loadReadyJob(result) {
+      if (!result.document || !Array.isArray(result.posts) || !result.posts.length) throw new Error('Import terminé sans document ou sans photos.');
+      var prepared = [];
+      try {
+        for (var metadata of result.posts) {
+          message('Préparation de l’aperçu : ' + (prepared.length + 1) + ' / ' + result.posts.length + '…');
+          var response = await fetch('/api/jobs/' + encodeURIComponent(result.id) + '/images/' + encodeURIComponent(metadata.id),
+            {credentials: 'same-origin', cache: 'no-store', redirect: 'error'});
+          if (!response.ok) throw new Error('Une image importée est indisponible. Rechargez le feed.');
+          var blob = await response.blob();
+          var file = new File([blob], metadata.name || 'page-' + (prepared.length + 1) + '.png', {type: metadata.mime});
+          var post = await app.readPhoto(file);
+          post.id = metadata.id;
+          post.syncedCaption = metadata.syncedCaption || '';
+          post.syncedHashtags = metadata.syncedHashtags || '';
+          post.caption = post.syncedCaption;
+          post.hashtags = post.syncedHashtags;
+          prepared.push(post);
+        }
+        documentLink(result.document);
+        job = result;
+        if (result.orderMode) $('order-mode').value = result.orderMode;
+        if (result.title) $('project-title').value = result.title;
+        app.replacePosts(prepared, result);
+        message('Google Doc créé avec ' + prepared.length + ' photo(s). Choisissez le type de compte, préparez les captions, puis ajoutez-les au document.');
+      } catch (error) {
+        prepared.forEach(function (post) { URL.revokeObjectURL(post.url); });
+        throw error;
+      }
+    }
+
+    async function waitForJob(id) {
+      for (var attempt = 0; attempt < 360; attempt++) {
+        var result = await api('/api/jobs/' + encodeURIComponent(id));
+        if (result.status === 'ready') { await loadReadyJob(result); return; }
+        if (result.status === 'error' || result.status === 'failed') throw new Error(result.error || 'L’import Canva a échoué.');
+        message(stages[result.stage] || 'Import en cours…');
+        await new Promise(function (resolve) { setTimeout(resolve, 1000); });
+      }
+      throw new Error('Le traitement prend plus de temps que prévu. Rechargez la page pour retrouver son état.');
+    }
+
+    async function startImport() {
+      if (currentBusy || !session) return;
+      var link = $('canva-url').value.trim();
+      if (!link) { $('canva-url').focus(); message('Collez le lien du design Canva.', true); return; }
+      if (app.getPosts().length && !confirm('Créer un nouveau feed ? Le Google Doc précédent sera conservé ; les textes non envoyés de cette fenêtre seront remplacés.')) return;
+      app.setBusy(true, false);
+      try {
+        message('Démarrage de l’import Canva…');
+        var result = await api('/api/import', {method: 'POST', body: {url: link,
+          orderMode: $('order-mode').value, title: $('project-title').value.trim() || 'Instagram feed'}});
+        await waitForJob(result.jobId);
+      } catch (error) { message(error.message, true); }
+      finally { app.setBusy(false, false); }
+    }
+
+    async function syncCaptions() {
+      if (currentBusy || !job) return;
+      app.setBusy(true, false);
+      try {
+        message('Ajout des textes au Google Doc…');
+        var result = await api('/api/jobs/' + encodeURIComponent(job.id) + '/captions', {method: 'POST', body: {
+          posts: app.getPosts().map(function (post) { return {id: post.id, caption: post.caption.trim(), hashtags: post.hashtags.trim()}; })
+        }});
+        if (Array.isArray(result.posts)) restoreSynced(result.posts);
+        documentLink(result.document || job.document);
+        app.render();
+        message('Textes envoyés au Google Doc. Vous pouvez les relire et les corriger directement dans le document.');
+      } catch (error) { message(error.message, true); }
+      finally { app.setBusy(false, false); }
+    }
+
+    async function init() {
+      if (!serverMode) {
+        message('Le lien Canva fonctionne depuis le serveur connecté de Feed Studio. Cette copie locale garde l’import manuel et l’export Word disponibles.');
+        render(false);
+        return;
+      }
+      try {
+        session = await api('/api/session');
+        if (!session.configured || !session.configured.canva || !session.configured.google) {
+          message('Les connexions Canva et Google doivent être activées par l’administrateur de cet outil avant le premier import.', true);
+        } else if (!session.connected.canva || !session.connected.google) {
+          message('Connectez Canva et Google une fois, puis collez le lien du design.');
+        } else {
+          message('Canva et Google sont connectés. Collez le lien de votre design.');
+        }
+        render(false);
+        if (session.latestJobId) {
+          app.setBusy(true, false);
+          try { await waitForJob(session.latestJobId); }
+          finally { app.setBusy(false, false); }
+        }
+      } catch (error) { message(error.message, true); render(false); }
+    }
+
+    $('connect-canva').addEventListener('click', function () { location.assign('/oauth/start/canva'); });
+    $('connect-google').addEventListener('click', function () { location.assign('/oauth/start/google'); });
+    $('canva-import').addEventListener('click', startImport);
+    $('sync-google-doc').addEventListener('click', syncCaptions);
+    $('new-canva-feed').addEventListener('click', function () {
+      if (currentBusy) return;
+      if (app.getPosts().some(function (post) {
+        return (post.caption && post.caption !== post.syncedCaption) || (post.hashtags && post.hashtags !== post.syncedHashtags);
+      }) && !confirm('Les textes non envoyés seront retirés de cette fenêtre. Continuer ?')) return;
+      job = null;
+      app.replacePosts([], null);
+      $('native-document').hidden = true;
+      message('Collez le lien du prochain design. Le document précédent reste dans Google Drive.');
+    });
+    init();
+    return {render: render};
+  }};
+}(window));
+</script>
   <script>(function () {
   'use strict';
   var posts = [], busy = false, outputUrl = null, draggedId = null;
+  var canvaBridge = null, nativeJob = null;
   var activeController = null, stopRequested = false;
   var MAX_PHOTOS = 60, MAX_IMAGE = 8 * 1024 * 1024, MAX_TOTAL = 40 * 1024 * 1024;
   var $ = function (id) { return document.getElementById(id); };
@@ -301,17 +535,18 @@
     input.maxLength = maxLength;
     input.placeholder = placeholder || '';
     input.value = post[name] || '';
-    input.disabled = busy;
+    input.disabled = busy || Boolean(nativeJob && ((name === 'caption' && post.syncedCaption) || (name === 'hashtags' && post.syncedHashtags)));
     input.addEventListener('input', function () {
       post[name] = input.value;
       invalidateExport();
+      if (canvaBridge) canvaBridge.render(busy);
     });
     wrapper.append(label, input);
     return wrapper;
   }
 
   function movePost(id, target) {
-    if (busy) return;
+    if (busy || nativeJob) return;
     var from = posts.findIndex(function (post) { return post.id === id; });
     if (from < 0 || target < 0 || target >= posts.length || from === target) return;
     posts.splice(target, 0, posts.splice(from, 1)[0]);
@@ -324,7 +559,10 @@
     $('empty-state').hidden = posts.length > 0;
     $('export-doc').disabled = busy || !posts.length;
     $('generate-captions').disabled = busy || !posts.length;
-    $('clear-photos').disabled = busy || !posts.length;
+    $('clear-photos').disabled = busy || !posts.length || Boolean(nativeJob);
+    $('photo-input').disabled = busy || Boolean(nativeJob);
+    $('order-mode').disabled = busy || Boolean(nativeJob);
+    $('project-title').disabled = busy || Boolean(nativeJob);
     var gridMode = $('order-mode').value === 'GRID';
     $('order-help').textContent = gridMode
       ? 'Placez les photos comme sur la maquette : gauche → droite, puis haut → bas. Le document commence par la dernière case, en bas à droite.'
@@ -350,9 +588,9 @@
     posts.forEach(function (post, index) {
       var card = node('article', 'card');
       card.dataset.postId = post.id;
-      card.draggable = !busy;
+      card.draggable = !busy && !nativeJob;
       card.addEventListener('dragstart', function (event) {
-        if (busy || /^(TEXTAREA|INPUT|BUTTON)$/.test(event.target.tagName)) { event.preventDefault(); return; }
+        if (busy || nativeJob || /^(TEXTAREA|INPUT|BUTTON)$/.test(event.target.tagName)) { event.preventDefault(); return; }
         draggedId = post.id;
         event.dataTransfer.setData('text/plain', post.id);
         event.dataTransfer.effectAllowed = 'move';
@@ -381,7 +619,7 @@
       photo.append(image, node('span', 'position-badge', String(index + 1).padStart(2, '0')));
       var remove = node('button', 'remove-button', '×');
       remove.type = 'button';
-      remove.disabled = busy;
+      remove.disabled = busy || Boolean(nativeJob);
       remove.setAttribute('aria-label', 'Retirer ' + post.name);
       remove.addEventListener('click', function () {
         posts = posts.filter(function (p) { return p.id !== post.id; });
@@ -398,7 +636,7 @@
       [[-1, '←', 'Déplacer avant'], [1, '→', 'Déplacer après']].forEach(function (spec) {
         var button = node('button', '', spec[1]);
         button.setAttribute('aria-label', spec[2] + ' : ' + post.name);
-        button.disabled = busy || index + spec[0] < 0 || index + spec[0] >= posts.length;
+        button.disabled = busy || Boolean(nativeJob) || index + spec[0] < 0 || index + spec[0] >= posts.length;
         button.addEventListener('click', function () { movePost(post.id, index + spec[0]); });
         controls.append(button);
       });
@@ -414,6 +652,7 @@
       card.append(photo, body);
       container.append(card);
     });
+    if (canvaBridge) canvaBridge.render(busy);
   }
 
   async function readPhoto(file) {
@@ -441,7 +680,7 @@
   }
 
   async function addFiles(list) {
-    if (busy || !list.length) return;
+    if (busy || nativeJob || !list.length) return;
     setBusy(true, false);
     status('Lecture des photos…');
     var added = 0, duplicates = 0, errors = [];
@@ -658,6 +897,16 @@
     if (posts.length) { event.preventDefault(); event.returnValue = ''; }
   });
   render();
+  canvaBridge = CanvaBridge.attach({
+    getPosts: function () { return posts; }, readPhoto: readPhoto, setBusy: setBusy, render: render,
+    replacePosts: function (nextPosts, nextJob) {
+      posts.forEach(function (post) { URL.revokeObjectURL(post.url); });
+      posts = nextPosts;
+      nativeJob = nextJob;
+      invalidateExport();
+      render();
+    }
+  });
 }());
 </script>
 </body>

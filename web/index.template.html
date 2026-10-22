@@ -4,14 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src blob: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://api.openai.com; base-uri 'none'; form-action 'none'">
+  <meta name="feed-studio-mode" content="offline">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' blob: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self' https://api.openai.com; base-uri 'none'; form-action 'none'">
   <title>Feed Studio — vos photos vers Google Docs</title>
   <style>{{STYLE}}</style>
 </head>
 <body>
   <header class="topbar"><a class="wordmark" href="#">Feed<span>Studio</span><i></i></a><span class="topnote">CANVA → GOOGLE DOCS</span></header>
   <main>
-    <section class="intro"><span class="eyebrow">VOTRE PROCHAIN FEED, PRÊT À RELIRE</span><h1>Les photos sont prêtes.<br>Préparez vos publications.</h1><p>Ajoutez vos images, vérifiez l’ordre et récupérez un document avec une photo, une caption et des hashtags par publication.</p></section>
+    <section class="intro"><span class="eyebrow">VOTRE PROCHAIN FEED, PRÊT À RELIRE</span><h1>Un lien Canva.<br>Votre feed dans Google Docs.</h1><p>Importez les pages de votre design, créez le document, puis choisissez le type de compte pour préparer vos captions en anglais.</p></section>
+    <section class="panel canva-panel" aria-label="Importer un lien Canva">
+      <div class="section-title"><span class="step">C</span><h2>Votre design Canva</h2><span id="connection-badge" class="connection-badge">Connexions à vérifier</span></div>
+      <p class="hint">Une photo par page Canva. Les pages sont exportées, mises dans l’ordre choisi et ajoutées à un Google Doc privé.</p>
+      <label for="canva-url">Lien du design</label><input id="canva-url" type="url" autocomplete="off" placeholder="https://www.canva.com/design/… ou https://canva.link/…">
+      <div class="canva-actions"><button id="connect-canva" class="button button-secondary" disabled>Connecter Canva</button><button id="connect-google" class="button button-secondary" disabled>Connecter Google</button><button id="canva-import" class="button button-primary" disabled>Créer le Google Doc depuis Canva</button><button id="new-canva-feed" class="text-button" hidden>Nouveau feed</button></div>
+      <p id="canva-status" class="hint" role="status" aria-live="polite">Vérification des connexions…</p>
+      <div id="native-document" class="native-document" hidden><a id="native-document-link" target="_blank" rel="noopener noreferrer">Ouvrir le Google Doc</a><p>Le document est créé. Choisissez maintenant hôtel, restaurant ou autre pour préparer les captions. Après leur envoi, corrigez les textes directement dans Google Docs.</p><button id="sync-google-doc" class="button button-secondary" disabled>Ajouter les captions au Google Doc</button></div>
+    </section>
     <div class="workspace">
       <aside class="panel settings">
         <div class="section-title"><span class="step">01</span><h2>Votre feed</h2></div>
@@ -29,13 +38,15 @@
           <label for="required-hashtags">Hashtags de marque <small>facultatif</small></label><input id="required-hashtags" maxlength="200" placeholder="#VotreMarque">
           <label for="ai-model">Modèle API</label><input id="ai-model" value="gpt-4.1-mini" maxlength="100" autocomplete="off">
         </details>
-        <div class="privacy-note"><span aria-hidden="true">◈</span><p>L’import et l’export fonctionnent hors connexion. La génération IA est facultative.</p></div>
+        <div class="privacy-note"><span aria-hidden="true">◈</span><p>Canva et Google demandent une connexion. L’import manuel et l’export Word restent disponibles hors connexion.</p></div>
       </aside>
       <section class="main-panel" aria-label="Photos et publications">
+        <details class="manual-import"><summary>Importer des fichiers manuellement <span>optionnel</span></summary>
         <div class="panel upload-panel" id="drop-zone">
           <div class="section-title"><span class="step">02</span><h2>Vos photos</h2><output id="photo-count">0 photo</output></div>
           <div class="upload-body"><span class="upload-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3m-5 5 5-5 5 5M4 16v4h16v-4"/></svg></span><h3>Glissez vos photos ici</h3><p>ou choisissez les images exportées de Canva</p><label class="button button-secondary file-button" for="photo-input">Choisir les photos<input id="photo-input" type="file" accept="image/jpeg,image/png" multiple></label><p class="hint">JPG / PNG · 8 Mo par photo · 40 Mo par feed · 60 photos max.</p></div>
         </div>
+        </details>
         <section id="grid-preview-section" class="panel grid-preview-section" hidden aria-label="Aperçu de la grille Instagram"><h3>Aperçu de la grille Instagram</h3><p class="hint">Les nouvelles publications sur le profil, hors posts épinglés.</p><div id="grid-preview" class="grid-preview"></div></section>
         <div class="feed-toolbar"><p id="grid-label">Maquette du feed · déplacez les cartes pour ajuster l’ordre</p><button class="text-button" id="clear-photos" disabled>Tout retirer</button></div>
         <div id="cards" class="cards" aria-label="Photos sélectionnées"></div>
@@ -53,6 +64,7 @@
     <footer>Feed Studio <span>Photos originales conservées · Aucun post publié automatiquement</span></footer>
   </main>
   <script>{{DOCX}}</script>
+  <script>{{CANVA}}</script>
   <script>{{APP}}</script>
 </body>
 </html>

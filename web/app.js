@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   var posts = [], busy = false, outputUrl = null, draggedId = null;
+  var canvaBridge = null, nativeJob = null;
   var activeController = null, stopRequested = false;
   var MAX_PHOTOS = 60, MAX_IMAGE = 8 * 1024 * 1024, MAX_TOTAL = 40 * 1024 * 1024;
   var $ = function (id) { return document.getElementById(id); };
@@ -48,17 +49,18 @@
     input.maxLength = maxLength;
     input.placeholder = placeholder || '';
     input.value = post[name] || '';
-    input.disabled = busy;
+    input.disabled = busy || Boolean(nativeJob && ((name === 'caption' && post.syncedCaption) || (name === 'hashtags' && post.syncedHashtags)));
     input.addEventListener('input', function () {
       post[name] = input.value;
       invalidateExport();
+      if (canvaBridge) canvaBridge.render(busy);
     });
     wrapper.append(label, input);
     return wrapper;
   }
 
   function movePost(id, target) {
-    if (busy) return;
+    if (busy || nativeJob) return;
     var from = posts.findIndex(function (post) { return post.id === id; });
     if (from < 0 || target < 0 || target >= posts.length || from === target) return;
     posts.splice(target, 0, posts.splice(from, 1)[0]);
@@ -71,7 +73,10 @@
     $('empty-state').hidden = posts.length > 0;
     $('export-doc').disabled = busy || !posts.length;
     $('generate-captions').disabled = busy || !posts.length;
-    $('clear-photos').disabled = busy || !posts.length;
+    $('clear-photos').disabled = busy || !posts.length || Boolean(nativeJob);
+    $('photo-input').disabled = busy || Boolean(nativeJob);
+    $('order-mode').disabled = busy || Boolean(nativeJob);
+    $('project-title').disabled = busy || Boolean(nativeJob);
     var gridMode = $('order-mode').value === 'GRID';
     $('order-help').textContent = gridMode
       ? 'Placez les photos comme sur la maquette : gauche → droite, puis haut → bas. Le document commence par la dernière case, en bas à droite.'
@@ -97,9 +102,9 @@
     posts.forEach(function (post, index) {
       var card = node('article', 'card');
       card.dataset.postId = post.id;
-      card.draggable = !busy;
+      card.draggable = !busy && !nativeJob;
       card.addEventListener('dragstart', function (event) {
-        if (busy || /^(TEXTAREA|INPUT|BUTTON)$/.test(event.target.tagName)) { event.preventDefault(); return; }
+        if (busy || nativeJob || /^(TEXTAREA|INPUT|BUTTON)$/.test(event.target.tagName)) { event.preventDefault(); return; }
         draggedId = post.id;
         event.dataTransfer.setData('text/plain', post.id);
         event.dataTransfer.effectAllowed = 'move';
@@ -128,7 +133,7 @@
       photo.append(image, node('span', 'position-badge', String(index + 1).padStart(2, '0')));
       var remove = node('button', 'remove-button', '×');
       remove.type = 'button';
-      remove.disabled = busy;
+      remove.disabled = busy || Boolean(nativeJob);
       remove.setAttribute('aria-label', 'Retirer ' + post.name);
       remove.addEventListener('click', function () {
         posts = posts.filter(function (p) { return p.id !== post.id; });
@@ -145,7 +150,7 @@
       [[-1, '←', 'Déplacer avant'], [1, '→', 'Déplacer après']].forEach(function (spec) {
         var button = node('button', '', spec[1]);
         button.setAttribute('aria-label', spec[2] + ' : ' + post.name);
-        button.disabled = busy || index + spec[0] < 0 || index + spec[0] >= posts.length;
+        button.disabled = busy || Boolean(nativeJob) || index + spec[0] < 0 || index + spec[0] >= posts.length;
         button.addEventListener('click', function () { movePost(post.id, index + spec[0]); });
         controls.append(button);
       });
@@ -161,6 +166,7 @@
       card.append(photo, body);
       container.append(card);
     });
+    if (canvaBridge) canvaBridge.render(busy);
   }
 
   async function readPhoto(file) {
@@ -188,7 +194,7 @@
   }
 
   async function addFiles(list) {
-    if (busy || !list.length) return;
+    if (busy || nativeJob || !list.length) return;
     setBusy(true, false);
     status('Lecture des photos…');
     var added = 0, duplicates = 0, errors = [];
@@ -405,4 +411,14 @@
     if (posts.length) { event.preventDefault(); event.returnValue = ''; }
   });
   render();
+  canvaBridge = CanvaBridge.attach({
+    getPosts: function () { return posts; }, readPhoto: readPhoto, setBusy: setBusy, render: render,
+    replacePosts: function (nextPosts, nextJob) {
+      posts.forEach(function (post) { URL.revokeObjectURL(post.url); });
+      posts = nextPosts;
+      nativeJob = nextJob;
+      invalidateExport();
+      render();
+    }
+  });
 }());
