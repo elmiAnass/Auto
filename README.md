@@ -1,76 +1,63 @@
-# Instagram feed → Google Docs
+# Feed Studio
 
-Automatisation Google Apps Script pour les photos individuelles exportées de Canva : un dossier Google Drive en entrée, un Google Doc de travail en sortie, avec une photo, une **caption en anglais** et des **hashtags** par publication.
+Une interface simple pour transformer vos photos Canva en document de publications Instagram : **photo + caption en anglais + hashtags**, dans le bon ordre. Le fichier Word obtenu s’ouvre dans Google Docs.
 
-Le script fonctionne sans abonnement Make. La rédaction manuelle fonctionne sans clé API ; l’assistant IA facultatif analyse chaque image et tient compte du type de compte (hôtel, restaurant ou autre). Aucun post n’est publié sur Instagram.
+## Commencer
 
-## Installation — une seule fois
+1. [Téléchargez le projet](https://github.com/elmiAnass/Auto/archive/refs/heads/main.zip) et décompressez-le.
+2. Ouvrez **index.html** dans Chrome, Edge ou Firefox. Aucun serveur, compte développeur ni installation n’est nécessaire.
+3. Cliquez **Choisir les photos**, sélectionnez vos JPG/PNG et choisissez le type de compte : hôtel, restaurant ou autre.
+4. Vérifiez l’ordre, puis cliquez **Créer le document**. Le fichier `.docx` se télécharge.
+5. Pour l’ouvrir dans Google Docs : page d’accueil Docs → icône dossier → **Importer** → choisissez le `.docx`.
 
-1. Créez un Google Sheet privé, puis ouvrez **Extensions → Apps Script**.
-2. Remplacez `Code.gs` par le contenu de [apps-script/Code.gs](apps-script/Code.gs).
-3. Dans les paramètres du projet, activez l’affichage du manifeste `appsscript.json`, puis remplacez-le par [apps-script/appsscript.json](apps-script/appsscript.json). Enregistrez.
-4. Rechargez le Google Sheet. Menu **Instagram Studio → 1. Prepare sheets**, puis autorisez l’accès à Sheets, Drive et Docs.
-5. Dans **Settings**, renseignez `SOURCE_FOLDER_ID` avec le lien ou l’identifiant du dossier Drive contenant les photos. `OUTPUT_FOLDER_ID` est facultatif : vide, le document est créé dans votre Drive personnel.
+Commencez avec trois photos. Vous pouvez saisir les captions dans l’interface ou les compléter ensuite dans Google Docs. Les originaux restent sur votre appareil.
 
-Les onglets `Settings` et `Feed` sont réservés à cet outil. Une structure existante différente provoque une erreur ; les données ne sont pas remplacées.
+## Ordre du feed
 
-## Pour chaque feed
+- **Comme la maquette du feed** — défaut : disposez les photos de gauche à droite, puis de haut en bas. Le document commence par la dernière image, en bas à droite.
+- **Dans l’ordre de publication** : la première carte devient la première publication ; aucune inversion.
 
-1. Exportez chaque photo de Canva en **JPG ou PNG**. Gardez les originaux dans Drive : le document sert à la révision, pas à récupérer les images en qualité originale.
-2. Placez les photos dans un dossier dédié, sans sous-dossiers. Nommez-les `01.jpg`, `02.jpg`… ou `01 - courtyard.png` : numéros uniques, supérieurs à zéro.
-3. Renseignez le dossier et le mode d’ordre dans `Settings`. Pour les captions automatiques, renseignez aussi `ACCOUNT_TYPE`, les informations confirmées et connectez l’assistant une seule fois (voir ci-dessous).
-4. Choisissez **Instagram Studio → Run full workflow**, cochez l’option IA si vous souhaitez des captions, puis **Start**. L’outil importe les photos, enchaîne les lots de captions et crée le Google Doc. Gardez la fenêtre ouverte pendant le traitement ; ne modifiez pas `Feed` ou `Settings` entre-temps.
-5. Ouvrez le document depuis le lien final. Relisez les captions, hashtags et la pagination. Sans IA, les textes vides deviennent des emplacements à compléter directement dans Docs.
+Les noms sont triés naturellement à l’ajout (`01`, `02`, `10`), puis vous pouvez déplacer les cartes par glisser-déposer ou avec les flèches. Le numéro **Publication** indique l’ordre réel dans le document. Un fichier identique n’est pas ajouté deux fois, même sous un autre nom.
 
-Les actions séparées **Import photos**, **Refresh publication order**, **Draft English captions (3 at a time)** et **Create review Google Doc** restent disponibles pour contrôler chaque étape. Dans `Feed`, vous pouvez modifier les positions, ajouter **Photo facts** et corriger les captions avant l’export.
+## Captions automatiques — optionnelles
 
-L’import conserve vos textes et positions et n’ajoute pas deux fois la même photo. Si vous fermez la fenêtre pendant le traitement, le lot en cours peut se terminer, mais les suivants ne sont pas lancés. Relancez le workflow pour reprendre : les captions existantes sont conservées.
+Ouvrez **Captions automatiques**, entrez votre clé OpenAI API et, si nécessaire, le nom et les informations confirmées de la marque. Cliquez **Générer les captions EN**.
 
-### Ordre des photos
+L’assistant reçoit chaque image et le type de compte : il doit adapter la caption au sujet visible et à l’activité, sans inventer équipements, tarifs, ingrédients, lieu précis ou offres. **Précisions sur cette photo** permet d’indiquer un nom de plat, un lieu confirmé ou un détail particulier. Relisez les textes avant utilisation.
 
-| `ORDER_MODE` | Le numéro `01` signifie… | Ordre du document |
-| --- | --- | --- |
-| `PUBLICATION` — défaut | Première photo à publier | 01, 02, 03… |
-| `GRID` | Case en haut à gauche de la maquette, puis gauche → droite et haut → bas | Numéros décroissants, départ en bas à droite |
+- L’API est facturée sur votre compte OpenAI ; un abonnement ChatGPT ne remplace pas le crédit API.
+- La clé reste en mémoire dans la fenêtre. Elle n’est ni enregistrée dans le navigateur, ni incluse dans le document, ni envoyée ailleurs qu’à `api.openai.com`.
+- L’import et l’export fonctionnent hors connexion. Seul un clic sur **Générer les captions EN** transmet les images et le brief à OpenAI.
+- Chaque résultat est conservé immédiatement dans la fenêtre. Si un appel échoue, corrigez le problème puis relancez : les captions déjà remplies ne sont pas remplacées. **Arrêter** interrompt la génération.
+- Pour régénérer un post, effacez sa caption. Si vous changez le type de compte, les textes précédents sont conservés et doivent être revus.
 
-Pour la maquette fournie de **15 photos**, en mode `GRID` : **15, 14, 13… 01**. En mode `PUBLICATION`, numérotez déjà dans l’ordre de publication : aucune inversion supplémentaire. La grille finale suppose ensuite cet ordre de publication, sans réorganisation ni épinglage des posts.
+## Limites et conservation
 
-Pour une autre campagne, dupliquez le Google Sheet, effacez uniquement les lignes de données de `Feed`, puis changez le dossier. Un import conserve toutes les lignes déjà présentes : ne mélangez pas deux campagnes.
+JPG/PNG uniquement, **8 Mo par photo**, **40 Mo au total**, **60 photos maximum**. Le contenu des originaux est conservé dans le fichier Word. La limite totale laisse une marge sous la limite de conversion de Google Docs.
 
-## Captions selon la photo et le compte
+Chaque post est prévu sur une page A4. Les textes sont limités à **900 caractères, 6 lignes explicites et 5 hashtags** pour maîtriser la pagination. Les photos sont affichées plus petites si le texte est long ; les pixels originaux ne sont pas réencodés. Contrôlez la pagination après import dans Google Docs et après vos modifications.
 
-Dans `Settings` :
+**Le travail n’est pas sauvegardé entre deux ouvertures.** Téléchargez votre document avant de fermer ou recharger la page. La clé API est effacée à la fermeture. Aucun post Instagram n’est publié par cet outil.
 
-- `ACCOUNT_TYPE` : `hotel`, `restaurant` ou `other` — obligatoire pour l’IA.
-- `BRAND_NAME` et `BRAND_BRIEF` : facultatifs, pour préciser la marque, l’audience et la campagne.
-- `TONE` : style d’écriture ; défaut élégant, chaleureux et sobre.
-- `VERIFIED_DETAILS` : informations confirmées uniquement.
-- `CALL_TO_ACTION` et `REQUIRED_HASHTAGS` : facultatifs.
+## Option avec intégration Google native
 
-La colonne **Photo facts** permet d’ajouter une précision propre à une image : nom d’un plat, type de chambre, etc. L’IA reçoit l’image elle-même, ces précisions et le type de compte. Elle propose un sujet reconnu et une caption en anglais, sans inventer équipements, tarifs, localisation précise ou promotions. Toute proposition reste à vérifier.
+L’ancienne version Apps Script reste disponible pour travailler directement avec Drive, Sheets et Docs. Elle demande une installation et une autorisation Google : [guide avancé](apps-script/README.md).
 
-Pour activer l’IA, choisissez **Connect caption assistant** et saisissez votre clé API OpenAI dans le formulaire local. Elle est conservée dans les propriétés utilisateur Apps Script, jamais dans la feuille, le document ou les journaux. Ne la partagez pas en conversation. Réservez l’édition du projet à des personnes de confiance, qui peuvent modifier le code exécuté.
+## Développement et vérification
 
-**Draft English captions** transmet les images et le brief à OpenAI ; l’utilisation de l’API est facturée sur votre compte. Aucune image n’est rendue publique. Modèle par défaut : `gpt-4.1-mini`, modifiable selon les modèles vision Responses API accessibles à votre compte.
-
-Chaque exécution traite au maximum **3 images** et sauvegarde chaque résultat immédiatement. **Run full workflow** enchaîne automatiquement les lots tant que la fenêtre reste ouverte ; l’action séparée traite un seul lot. Une caption existante n’est jamais remplacée. Pour régénérer un post, effacez sa caption dans `Feed` ; ses anciens hashtags seront remplacés. Sans clé, import et création du document restent disponibles.
-
-## Conservation et limites
-
-- Les photos sources ne sont pas modifiées. Le document n’est pas rendu public par le script ; un dossier de sortie partagé peut lui transmettre ses règles de partage.
-- Un export inchangé retrouve le document précédent et conserve vos modifications dans Docs. Une modification des images, de la feuille ou du dossier de sortie produit une nouvelle version ; les changements faits directement dans l’ancien document ne sont pas transférés.
-- JPEG/PNG, maximum **8 Mo par image**, **60 images par document**, **5 hashtags par post**. Les fichiers non-images sont ignorés ; un format image non pris en charge est signalé.
-- Une page A4 est prévue par publication, avec un saut entre les posts. Captions limitées à **900 caractères et 6 lignes explicites**. La pagination doit être vérifiée dans Google Docs, notamment après modification du texte.
-- API 401 : vérifier la clé. API 429 : vérifier quota/facturation et réessayer plus tard. Les messages d’erreur ne reprennent ni la clé ni le corps de réponse du service.
-
-## Vérification
-
-Avec Node.js 18 ou plus récent, sans dépendances :
+L’application livrée est un unique `index.html`, sans bibliothèque externe ni étape d’installation pour l’utilisateur. Sources : `web/`. Pour reconstruire après modification :
 
 ```sh
-node --test tests/automation.test.cjs
+node scripts/build.mjs
+node --test tests/*.test.cjs
 ```
 
-Les tests utilisent des services Google/API simulés. **Ils ne prouvent pas une connexion réelle à Google ni la qualité des captions IA.** Aucune autorisation Google ni génération payante n’a été effectuée ici.
+Les tests navigateur nécessitent Python, Playwright, Chromium, Pillow et python-docx :
 
-Essai réel après installation : utilisez 3 photos numérotées et lancez **Run full workflow**. Contrôlez les sujets, captions, pages et l’ordre de publication. Relancez sans changement : aucun doublon ne doit apparaître. Vérifiez aussi le mode `GRID`, puis les captions avec `ACCOUNT_TYPE=restaurant` et `hotel` sur des photos adaptées, dans deux copies distinctes de la feuille.
+```sh
+python3 tests/browser_smoke.py
+```
+
+Les tests Apps Script/API utilisent des réponses simulées. Les essais navigateur utilisent de vraies images, téléchargent le DOCX et l’ouvrent avec python-docx ; les appels IA y sont simulés. La pagination a aussi été vérifiée par conversion LibreOffice en PDF. Aucune génération IA payante ni connexion à un compte Google n’a été effectuée ici.
+
+Résultats de cette version : **40 tests Node et 11 essais Chromium réussis**. La politique du navigateur géré dans cet environnement bloque les URL `file://` ; les essais ont donc servi le même fichier HTML par HTTP local temporaire. L’ouverture directe du fichier dans un navigateur personnel reste à confirmer. Le fichier livré inclut tout son code et ne charge aucune bibliothèque externe.
