@@ -7,7 +7,7 @@
     "node": ">=24.5.0"
   },
   "scripts": {
-    "start": "node --use-env-proxy server/server.mjs",
+    "start": "node --env-file-if-exists=.env --use-env-proxy server/server.mjs",
     "build": "node scripts/build.mjs",
     "test": "node --test tests/*.test.cjs tests/*.test.mjs",
     "test:browser": "python3 tests/browser_smoke.py"

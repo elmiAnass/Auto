@@ -43,7 +43,7 @@ Les champs déjà envoyés dans Google Docs ne sont plus remplacés : corrigez-l
 
 ## État de la version
 
-Le serveur démarre et les parcours sont testés avec des services externes simulés. **Le lien Canva fourni dans la conversation n’a pas encore pu être importé réellement et aucun document Google n’a été créé dans le compte de l’utilisateur.** La configuration OAuth Canva/Google manque ; les autorisations réseau enregistrées dans le brouillon doivent aussi être appliquées.
+Le serveur démarre et les parcours sont testés avec des services externes simulés. **Le lien Canva fourni dans la conversation n’a pas encore pu être importé réellement et aucun document Google n’a été créé dans le compte de l’utilisateur.** L’utilisation réelle requiert les identifiants OAuth Canva/Google, les callbacks et les autorisations des comptes. Dans l’environnement cloud Codex, les autorisations réseau enregistrées dans le brouillon doivent aussi être appliquées.
 
 Un simple lien de partage n’accorde pas d’accès API au compte Canva. Les connexions ne sont activées dans l’interface que lorsque l’administrateur a configuré les deux applications OAuth.
 
@@ -51,7 +51,7 @@ Un simple lien de partage n’accorde pas d’accès API au compte Canva. Les co
 
 Node.js **24.5 ou plus récent** ; aucune dépendance npm à installer. `index.html` est déjà construit et commité.
 
-Configurez les valeurs dans des paramètres d’environnement sécurisés. [.env.example](.env.example) liste les noms ; ne communiquez jamais les secrets en conversation.
+Configurez les valeurs dans des paramètres d’environnement sécurisés ou dans un fichier `.env` local ignoré par Git. `npm start` charge ce fichier s’il existe ; les variables injectées par l’hébergeur restent prioritaires. [.env.example](.env.example) liste les noms ; ne communiquez jamais les secrets en conversation. Un fichier local n’est pas envoyé à Render lors d’un push : renseignez les secrets séparément dans les paramètres sécurisés de l’hébergeur.
 
 | Nom | Usage |
 | --- | --- |
@@ -75,10 +75,10 @@ PUBLIC_ORIGIN/oauth/callback/google
 
 Remplacez `PUBLIC_ORIGIN` dans ces exemples par l’origine réelle du serveur. En développement, utilisez une origine locale et les mêmes callbacks exacts ; les comptes de test doivent être autorisés dans les applications OAuth.
 
-Démarrage avec les variables déjà injectées :
+Démarrage avec les variables déjà injectées ou le fichier `.env` local :
 
 ```sh
-node --use-env-proxy server/server.mjs
+npm start
 ```
 
 Avec un fichier `.env` local ignoré :
@@ -115,7 +115,7 @@ python3 tests/browser_smoke.py
 
 Les tests Node vérifient les exports DOCX, OAuth, les adaptateurs et le serveur HTTP. Un test branche les vrais adaptateurs sur le serveur avec des réponses HTTP externes simulées. Les tests Chromium utilisent de vraies images et des téléchargements DOCX ; OAuth, Canva, Google et OpenAI y sont simulés. La pagination DOCX a aussi été contrôlée par conversion LibreOffice en PDF. Ces tests ne valident ni les autorisations de vos comptes ni la qualité d’une génération IA réelle.
 
-Validation : **tests Node et 15 essais Chromium réussis**. Le démarrage réel du serveur, sa page et son état de connexion ont été vérifiés ; les deux applications OAuth sont actuellement non configurées. La configuration automatique de l’origine Render est couverte par les tests du serveur.
+Validation : **tests Node et 15 essais Chromium réussis**. Le démarrage réel du serveur, sa page et son état de connexion ont été vérifiés. `/api/session` distingue la présence des identifiants et la connexion effective des comptes ; ces états dépendent de la configuration privée et de la session en cours. La configuration automatique de l’origine Render est couverte par les tests du serveur.
 
 Le navigateur géré ici bloque les URL `file://` ; les essais navigateur servent le même HTML par HTTP local temporaire. L’ouverture locale reste disponible uniquement pour l’import manuel et l’export Word, sans connexion Canva.
 
