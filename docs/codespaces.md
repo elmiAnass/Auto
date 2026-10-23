@@ -19,6 +19,8 @@ Ouvrez le port **3000** depuis l’onglet **Ports** de Codespaces. Gardez le ter
 
 Conservez votre `.env` à la racine du projet, à côté de `package.json`. Git ne le remplace pas et ne le publie pas. Seules ces quatre valeurs sont nécessaires :
 
+Si vous ne pouvez pas télécharger votre configuration privée, lancez `npm run setup` dans le terminal du projet. L’assistant demande ces quatre valeurs, masque la saisie et conserve les autres réglages de `.env`. Il ne contacte aucun service externe. Retrouvez les valeurs dans vos informations OAuth existantes ; aucune clé n’est téléchargée depuis GitHub. Ensuite, lancez `npm start`.
+
 ```dotenv
 CANVA_CLIENT_ID=
 CANVA_CLIENT_SECRET=

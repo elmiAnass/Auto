@@ -7,6 +7,7 @@
     "node": ">=24.5.0"
   },
   "scripts": {
+    "setup": "node scripts/configure.mjs",
     "prestart": "node scripts/build.mjs",
     "start": "node --env-file-if-exists=.env --use-env-proxy server/server.mjs",
     "build": "node scripts/build.mjs",
