@@ -2,6 +2,10 @@
 
 Collez le **lien d’un design Canva contenant une photo par page**. L’outil exporte les pages, les classe dans l’ordre de publication et crée un **Google Doc natif privé**. Choisissez ensuite le type de compte (hôtel, restaurant ou autre), préparez les captions en anglais et envoyez-les dans ce même document.
 
+## Tester dans GitHub Codespaces
+
+Si votre application est déjà accessible sur une adresse `app.github.dev`, utilisez directement ce Codespace : aucun déploiement Render n’est nécessaire pour cet essai. Le [guide Codespaces](docs/codespaces.md) explique où placer `.env`, comment relancer le serveur et quelles URL de retour enregistrer.
+
 ## Mise en ligne sur Render
 
 Render peut demander une carte bancaire, même avec une instance Free. Le choix d’un Web Service manuel ne garantit pas de supprimer cette vérification. Si votre compte bloque le déploiement à cette étape, utilisez le [guide de test local](docs/local-run.md) pour tester le même serveur sur votre ordinateur, sans hébergement.

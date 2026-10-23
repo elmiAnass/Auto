@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 .local/
+Feed-Studio-*-Private.zip
 node_modules/
 __pycache__/
 *.pyc

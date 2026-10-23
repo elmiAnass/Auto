@@ -2,6 +2,8 @@
 
 Cette méthode lance le même serveur sur votre ordinateur. Elle ne demande pas de compte d’hébergement. Canva et Google doivent toujours autoriser leurs connexions ; la génération des captions utilise la facturation OpenAI API.
 
+Si votre application est déjà ouverte sur une adresse `app.github.dev`, utilisez le [guide Codespaces](codespaces.md) : aucune installation Windows n’est nécessaire pour cet essai.
+
 Le [starter officiel Canva Connect](https://github.com/canva-sdks/canva-connect-api-starter-kit#readme) utilise lui aussi des URL de retour HTTP sur `127.0.0.1` pour le développement. Utilisez exactement cette adresse et le même port dans le navigateur et les deux consoles OAuth.
 
 ## Préparer le serveur
