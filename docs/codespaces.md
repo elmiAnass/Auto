@@ -21,6 +21,8 @@ Conservez votre `.env` à la racine du projet, à côté de `package.json`. Git 
 
 Si vous ne pouvez pas télécharger votre configuration privée, lancez `npm run setup` dans le terminal du projet. L’assistant demande ces quatre valeurs, masque la saisie et conserve les autres réglages de `.env`. Il ne contacte aucun service externe. Retrouvez les valeurs dans vos informations OAuth existantes ; aucune clé n’est téléchargée depuis GitHub. Ensuite, lancez `npm start`.
 
+Si un code d’activation privé vous a été transmis, `npm run setup -- --activate VOTRE_CODE` importe la configuration préparée sans redemander les identifiants. Le fichier `config/activation.enc.json` est chiffré en AES-256-GCM avec une clé aléatoire de 256 bits, fournie séparément et jamais enregistrée dans Git. Le déchiffrement et l’écriture de `.env` se font localement ; une clé incorrecte ou un fichier modifié ne change pas votre configuration. Le code d’activation donne accès à vos identifiants : conservez-le dans votre échange privé et ne le publiez pas. Une fois `.env` créé, seul `npm start` est nécessaire.
+
 ```dotenv
 CANVA_CLIENT_ID=
 CANVA_CLIENT_SECRET=

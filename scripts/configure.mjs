@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, renameSync, unlinkSync, chmodSync, lstatSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createDecipheriv } from 'node:crypto';
 import { parseEnv } from 'node:util';
 import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
@@ -13,8 +13,45 @@ const fields = [
   ['GOOGLE_CLIENT_SECRET', 'Google — Client secret']
 ];
 
+function activationValues(code) {
+  const message = 'Code d’activation incorrect ou configuration endommagée. Aucun changement enregistré.';
+  try {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(code || '')) throw new Error();
+    const key = Buffer.from(code, 'base64url');
+    if (key.length !== 32 || key.toString('base64url') !== code) throw new Error();
+    const source = readFileSync(new URL('../config/activation.enc.json', import.meta.url));
+    if (source.length > 16 * 1024) throw new Error();
+    const envelope = JSON.parse(source.toString('utf8'));
+    if (envelope.version !== 1 || envelope.algorithm !== 'aes-256-gcm') throw new Error();
+    const decode = (value, size) => {
+      if (typeof value !== 'string' || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error();
+      const bytes = Buffer.from(value, 'base64url');
+      if (bytes.toString('base64url') !== value || (size && bytes.length !== size)) throw new Error();
+      return bytes;
+    };
+    const decipher = createDecipheriv('aes-256-gcm', key, decode(envelope.iv, 12));
+    decipher.setAAD(Buffer.from('feed-studio-oauth-config:v1'));
+    decipher.setAuthTag(decode(envelope.tag, 16));
+    const plaintext = Buffer.concat([decipher.update(decode(envelope.data)), decipher.final()]);
+    const saved = JSON.parse(plaintext.toString('utf8'));
+    if (!saved || Array.isArray(saved) || Object.keys(saved).length !== fields.length) throw new Error();
+    for (const [name] of fields) {
+      const value = saved[name];
+      if (typeof value !== 'string' || !value.length || value.length > 1024 ||
+          /[\s\u0000-\u001f\u007f#"'`\\=]/.test(value)) throw new Error();
+    }
+    if (!saved.GOOGLE_CLIENT_ID.endsWith('.apps.googleusercontent.com')) throw new Error();
+    return saved;
+  } catch {
+    throw Object.assign(new Error(message), { publicMessage: message });
+  }
+}
+
 async function configure() {
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+  const args = process.argv.slice(2);
+  const activating = args.length === 2 && args[0] === '--activate';
+  if (args.length && !activating) throw new Error('Arguments inconnus.');
+  if (!activating && (!process.stdin.isTTY || !process.stdout.isTTY)) {
     throw new Error('Lancez npm run setup directement dans le terminal de votre Codespace.');
   }
 
@@ -26,42 +63,44 @@ async function configure() {
     if (error.code !== 'ENOENT') throw error;
   }
   const existing = parseEnv(original);
-  const saved = {};
-  // Readline retains its normal editing/paste behavior, but its output is muted
-  // for every answer. Credentials never appear in the terminal or shell history.
-  const quiet = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
-  const input = createInterface({ input: process.stdin, output: quiet, terminal: true });
-  const abort = new AbortController();
-  input.once('close', () => abort.abort());
-  const cancelled = () => { input.close(); };
-  input.on('SIGINT', cancelled);
-  let completed = false;
-  try {
-    process.stdout.write('\nConfiguration privée de Feed Studio\nCopiez les 4 valeurs depuis vos messages précédents. La saisie est masquée.\nEntrée conserve une valeur déjà enregistrée ; Ctrl+C annule sans rien modifier.\n\n');
-    for (const [key, label] of fields) {
-      const fallback = process.env[key] || existing[key] || '';
-      while (true) {
-        process.stdout.write(label + (fallback ? ' [déjà enregistré]' : '') + ' : ');
-        const entered = await input.question('', { signal: abort.signal });
-        process.stdout.write('\n');
-        const value = entered.trim() || fallback;
-        if (!value) { process.stdout.write('Collez la valeur correspondante, puis appuyez sur Entrée.\n'); continue; }
-        if (/[\s\u0000-\u001f\u007f#"'`\\]/.test(value) || value.includes('=')) {
-          process.stdout.write('Collez uniquement la valeur, sans nom de variable, guillemets ou espace.\n');
-          continue;
+  const saved = activating ? activationValues(args[1]) : {};
+  if (!activating) {
+    // Readline retains its normal editing/paste behavior, but its output is muted
+    // for every answer. Credentials never appear in the terminal or shell history.
+    const quiet = new Writable({ write(_chunk, _encoding, callback) { callback(); } });
+    const input = createInterface({ input: process.stdin, output: quiet, terminal: true });
+    const abort = new AbortController();
+    input.once('close', () => abort.abort());
+    const cancelled = () => { input.close(); };
+    input.on('SIGINT', cancelled);
+    let completed = false;
+    try {
+      process.stdout.write('\nConfiguration privée de Feed Studio\nCopiez les 4 valeurs depuis vos messages précédents. La saisie est masquée.\nEntrée conserve une valeur déjà enregistrée ; Ctrl+C annule sans rien modifier.\n\n');
+      for (const [key, label] of fields) {
+        const fallback = process.env[key] || existing[key] || '';
+        while (true) {
+          process.stdout.write(label + (fallback ? ' [déjà enregistré]' : '') + ' : ');
+          const entered = await input.question('', { signal: abort.signal });
+          process.stdout.write('\n');
+          const value = entered.trim() || fallback;
+          if (!value) { process.stdout.write('Collez la valeur correspondante, puis appuyez sur Entrée.\n'); continue; }
+          if (/[\s\u0000-\u001f\u007f#"'`\\]/.test(value) || value.includes('=')) {
+            process.stdout.write('Collez uniquement la valeur, sans nom de variable, guillemets ou espace.\n');
+            continue;
+          }
+          if (key === 'GOOGLE_CLIENT_ID' && !value.endsWith('.apps.googleusercontent.com')) {
+            process.stdout.write('Le Client ID Google se termine par .apps.googleusercontent.com.\n');
+            continue;
+          }
+          saved[key] = value;
+          break;
         }
-        if (key === 'GOOGLE_CLIENT_ID' && !value.endsWith('.apps.googleusercontent.com')) {
-          process.stdout.write('Le Client ID Google se termine par .apps.googleusercontent.com.\n');
-          continue;
-        }
-        saved[key] = value;
-        break;
       }
+      completed = true;
+    } finally {
+      input.close();
+      if (!completed) process.stdout.write('\nConfiguration annulée. Aucun fichier modifié.\n');
     }
-    completed = true;
-  } finally {
-    input.close();
-    if (!completed) process.stdout.write('\nConfiguration annulée. Aucun fichier modifié.\n');
   }
 
   // Preserve unrelated local settings and comments; replace only these four keys.
@@ -102,7 +141,7 @@ async function configure() {
 configure().catch(error => {
   if (error.code !== 'ABORT_ERR' && error.code !== 'ERR_USE_AFTER_CLOSE') {
     // Do not echo unexpected filesystem/input errors which might include values.
-    process.stderr.write('Configuration interrompue. Vérifiez le terminal et les droits du fichier .env, puis relancez npm run setup.\n');
+    process.stderr.write((error.publicMessage || 'Configuration interrompue. Vérifiez le terminal et les droits du fichier .env, puis relancez npm run setup.') + '\n');
   }
   process.exitCode = 1;
 });
