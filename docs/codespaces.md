@@ -1,50 +1,66 @@
-# Configurer un essai dans GitHub Codespaces
+# Lancer Feed Studio dans GitHub Codespaces
 
-Une page Feed Studio déjà ouverte sur une adresse `https://…-3000.app.github.dev` est servie par votre Codespace. Pour cet essai, vous n’avez pas besoin de publier une autre copie sur Render ni d’installer Node sur votre ordinateur Windows.
+Si votre page utilise une adresse `https://…-3000.app.github.dev`, elle tourne déjà dans votre Codespace. Aucun déploiement Render ni installation Windows n’est nécessaire.
 
-## Si les connexions sont désactivées
+## Mettre à jour puis démarrer
 
-Le message « Les connexions Canva et Google doivent être activées par l’administrateur de cet outil » signifie que le processus qui sert cette page n’a pas reçu les deux configurations OAuth complètes. Les valeurs saisies dans une autre machine ne sont pas transférées par un push GitHub.
+Dans le terminal où tourne l’ancienne version, appuyez sur **Ctrl+C**, puis lancez :
 
-1. Placez le fichier privé `.env` à la racine du projet **dans l’éditeur Codespaces**, au même niveau que `package.json`.
-2. Si vous avez reçu une archive privée contenant `.env`, extrayez-la sur votre ordinateur puis glissez uniquement `.env` dans cet emplacement. L’archive et le fichier de configuration ne doivent pas être publiés sur GitHub ; les noms prévus sont ignorés par `.gitignore`.
-3. Dans le terminal où tourne le serveur, appuyez sur **Ctrl+C**, puis exécutez `npm start`.
-4. Rechargez la page Feed Studio.
+```sh
+git pull --ff-only origin main
+npm start
+```
 
-`npm start` charge `.env`. Les variables déjà injectées dans le processus restent prioritaires : une ancienne valeur définie dans les paramètres Codespaces doit donc être corrigée également.
+Pour les démarrages suivants, `npm start` suffit. Il reconstruit la page et charge le fichier privé `.env`. Aucune dépendance npm n’est à installer. Utilisez Node.js 24.5 ou plus récent ; `.nvmrc` indique la version validée.
 
-Pour préparer le fichier vous-même, copiez `.env.example` puis renseignez ces variables, sans publier leurs valeurs :
+Ouvrez le port **3000** depuis l’onglet **Ports** de Codespaces. Gardez le terminal ouvert pendant l’utilisation.
+
+## Conserver les connexions existantes
+
+Conservez votre `.env` à la racine du projet, à côté de `package.json`. Git ne le remplace pas et ne le publie pas. Seules ces quatre valeurs sont nécessaires :
 
 ```dotenv
-PUBLIC_ORIGIN=https://VOTRE-CODESPACE-3000.app.github.dev
-FEED_STUDIO_HOST=0.0.0.0
-FEED_STUDIO_PORT=3000
 CANVA_CLIENT_ID=
 CANVA_CLIENT_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4.1-mini
 ```
 
-Remplacez l’origine d’exemple par l’adresse exacte de votre page, sans chemin. Vous pouvez aussi omettre `PUBLIC_ORIGIN` : le serveur utilise `CODESPACE_NAME`, `GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN` (ou `app.github.dev`) et le port configuré pour retrouver l’adresse Codespaces automatiquement. Une valeur `PUBLIC_ORIGIN` explicite reste prioritaire, même si elle est ancienne. Si vous utilisez les secrets Codespaces à la place d’un fichier local, configurez les mêmes noms dans les paramètres GitHub et redémarrez le Codespace pour qu’ils soient injectés.
+Les valeurs privées d’une autre machine ne sont pas transférées par un push GitHub. Si les connexions apparaissent comme non configurées, complétez ce fichier à partir de `.env.example`, puis redémarrez avec `npm start`. Les variables déjà injectées par Codespaces restent prioritaires. Aucune clé d’IA n’est utilisée.
 
-Si une action affiche **Unexpected request origin**, l’en-tête Origin reçu ne correspond pas à l’origine configurée. Le message indique l’origine attendue et l’origine reçue ; les en-têtes malformés ne sont pas recopiés. `/api/session` expose aussi `publicOrigin` pour ce diagnostic, sans exposer les identifiants. Ouvrez l’adresse configurée ou corrigez `PUBLIC_ORIGIN`, puis redémarrez le serveur et reconnectez les comptes. Si les valeurs ne correspondent toujours pas, vérifiez le contexte du navigateur ou du proxy. Les en-têtes Host et Forwarded ne sont pas utilisés pour autoriser une nouvelle origine ; les protections Origin et CSRF restent actives.
+L’adresse publique est détectée à partir du Codespace et du port. Si votre `.env` contient `PUBLIC_ORIGIN`, cette valeur reste prioritaire : elle doit être exactement l’adresse principale actuelle, sans chemin. Une ancienne adresse peut provoquer **Unexpected request origin**. Corrigez-la, redémarrez, puis reconnectez les comptes.
 
-## Enregistrer les deux URL de retour
+## Autorisations des comptes — une fois
 
-Dans [Canva Integrations](https://www.canva.com/developers/integrations), enregistrez l’adresse de votre application suivie de `/oauth/callback/canva`. Activez le scope `design:content:read`.
+Dans [Canva Integrations](https://www.canva.com/developers/integrations), ouvrez l’intégration correspondant au Client ID. Dans **Outside Canva → Configuration**, activez **Canva REST APIs** et le scope `design:content:read`. Enregistrez comme Redirect URL votre adresse principale suivie de :
 
-Dans [Google OAuth Clients](https://console.cloud.google.com/auth/clients), ouvrez le client Web et ajoutez l’adresse de votre application suivie de `/oauth/callback/google` dans les **Authorized redirect URIs**.
+```text
+/oauth/callback/canva
+```
 
-Les URL doivent correspondre exactement à l’origine configurée dans `PUBLIC_ORIGIN`. Si vous recréez le Codespace et que son adresse change, mettez à jour ces trois réglages.
+Si Canva affiche `invalid_scope`, activez ce scope dans cette même intégration, sauvegardez, puis relancez **Connecter Canva** depuis l’application.
 
-Si Canva renvoie `invalid_scope` avec « Requested scopes are not allowed for this client », ouvrez la même intégration que le Client ID configuré. Dans **Outside Canva → Configuration**, activez **Canva REST APIs**, puis dans **Scopes** activez la lecture de `design:content` (`design:content:read`) et sauvegardez. Revenez à la page principale Feed Studio et relancez **Connecter Canva** ; recharger l’ancien callback ne lance pas une nouvelle autorisation.
+Dans le projet Google du client OAuth, activez **[Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com)** et **[Google Sheets API](https://console.cloud.google.com/apis/library/sheets.googleapis.com)**. Google Docs API n’est pas nécessaire : le document est créé par conversion via Drive.
 
-Vérifiez dans le projet Google que Drive API et Docs API sont activées et que votre compte figure parmi les utilisateurs de test si le consentement OAuth est en mode Testing.
+Dans [Google OAuth Clients](https://console.cloud.google.com/auth/clients), ouvrez votre client **Web application**. Ajoutez comme Authorized redirect URI votre adresse principale suivie de :
 
-## Essayer le feed
+```text
+/oauth/callback/google
+```
 
-Cliquez sur **Connecter Canva**, puis **Connecter Google**, et acceptez les autorisations. Vous pouvez ensuite importer le lien Canva et créer le Google Doc avec les images. La génération des captions requiert du crédit OpenAI API ; `insufficient_quota` indique que cette étape reste bloquée par le quota ou la facturation API.
+Le scope Google reste `drive.file`, limité aux fichiers créés par l’application. Si votre application est en mode Testing, ajoutez votre adresse aux [utilisateurs de test](https://console.cloud.google.com/auth/audience). Le message « Google n’a pas validé cette application » concerne ce statut de test ; continuez uniquement pour votre propre application et votre compte de test.
 
-Le mode Codespaces est un environnement de développement : son arrêt coupe le serveur et efface les sessions en mémoire. Les Google Docs créés restent dans Drive.
+Si vous recréez le Codespace et que son adresse change, actualisez les deux URL de retour et toute valeur `PUBLIC_ORIGIN` explicite.
+
+## Utiliser le planning
+
+1. Connectez Canva et Google.
+2. Collez le lien Canva, avec une photo par page, choisissez le nom et l’ordre, puis créez le planning.
+3. Ouvrez le Google Sheet créé. Chaque ligne contient le lien privé vers sa photo ; remplissez **Caption** et **Hashtags**.
+4. Revenez dans Feed Studio, actualisez les textes, puis créez le Google Doc.
+
+Les PNG originaux, le Sheet et les Docs restent dans un dossier privé de votre Drive. Le serveur ne génère aucun texte et ne publie rien sur Instagram.
+
+Après un redémarrage, reconnectez Google, choisissez **Reprendre un planning** et collez le lien du Sheet. Canva n’est pas nécessaire pour reprendre un planning existant. Un export identique retrouve le Doc ; des textes modifiés créent une nouvelle version sans remplacer les anciennes.
+
+Le Codespace doit rester actif pour utiliser l’application. Ses sessions en mémoire ne survivent pas à un arrêt ; vos fichiers Google restent enregistrés.

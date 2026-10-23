@@ -5,67 +5,66 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
   <meta name="feed-studio-mode" content="offline">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' blob: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self' https://api.openai.com; base-uri 'none'; form-action 'none'">
-  <title>Feed Studio — vos photos vers Google Docs</title>
+  <meta name="theme-color" content="#f7f8f4">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>Feed Studio — votre planning de publications</title>
   <style>{{STYLE}}</style>
 </head>
 <body>
-  <header class="topbar"><a class="wordmark" href="#">Feed<span>Studio</span><i></i></a><span class="topnote">CANVA → GOOGLE DOCS</span></header>
+  <a class="skip-link" href="#planning">Aller au planning</a>
+  <header class="topbar">
+    <a class="wordmark" href="/" aria-label="Feed Studio, accueil"><span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Feed<span>Studio</span></a>
+    <span class="topnote">De la création à la publication</span>
+  </header>
   <main>
-    <section class="intro"><span class="eyebrow">VOTRE PROCHAIN FEED, PRÊT À RELIRE</span><h1>Un lien Canva.<br>Votre feed dans Google Docs.</h1><p>Importez les pages de votre design, créez le document, puis choisissez le type de compte pour préparer vos captions en anglais.</p></section>
-    <section class="panel canva-panel" aria-label="Importer un lien Canva">
-      <div class="section-title"><span class="step">C</span><h2>Votre design Canva</h2><span id="connection-badge" class="connection-badge">Connexions à vérifier</span></div>
-      <p class="hint">Une photo par page Canva. Les pages sont exportées, mises dans l’ordre choisi et ajoutées à un Google Doc privé.</p>
-      <label for="canva-url">Lien du design</label><input id="canva-url" type="url" autocomplete="off" placeholder="https://www.canva.com/design/… ou https://canva.link/…">
-      <div class="canva-actions"><button id="connect-canva" class="button button-secondary" disabled>Connecter Canva</button><button id="connect-google" class="button button-secondary" disabled>Connecter Google</button><button id="canva-import" class="button button-primary" disabled>Créer le Google Doc depuis Canva</button><button id="new-canva-feed" class="text-button" hidden>Nouveau feed</button></div>
-      <p id="canva-status" class="hint" role="status" aria-live="polite">Vérification des connexions…</p>
-      <div id="native-document" class="native-document" hidden><a id="native-document-link" target="_blank" rel="noopener noreferrer">Ouvrir le Google Doc</a><p>Le document est créé. Choisissez maintenant hôtel, restaurant ou autre pour préparer les captions. Après leur envoi, corrigez les textes directement dans Google Docs.</p><button id="sync-google-doc" class="button button-secondary" disabled>Ajouter les captions au Google Doc</button></div>
+    <section class="intro" aria-labelledby="page-title">
+      <div><p class="eyebrow">UN ESPACE POUR PRÉPARER VOTRE FEED</p><h1 id="page-title">Vos photos Canva.<br>Votre planning, au clair.</h1><p class="intro-description">Rassemblez vos photos dans Google Sheets, rédigez vos textes à votre rythme, puis créez votre document de présentation.</p></div>
+      <ol class="workflow" aria-label="Les trois étapes"><li><span>01</span><div><strong>Importez depuis Canva</strong><p>Une photo par page du design.</p></div></li><li><span>02</span><div><strong>Complétez Google Sheets</strong><p>Une ligne par publication, avec sa photo.</p></div></li><li><span>03</span><div><strong>Créez le Google Doc</strong><p>Vos photos et vos textes réunis.</p></div></li></ol>
     </section>
-    <div class="workspace">
-      <aside class="panel settings">
-        <div class="section-title"><span class="step">01</span><h2>Votre feed</h2></div>
-        <label for="project-title">Nom du document</label><input id="project-title" maxlength="100" value="Instagram feed" autocomplete="off">
-        <label for="account-type">Type de compte</label><select id="account-type"><option value="hotel">Hôtel / Riad</option><option value="restaurant">Restaurant / Café</option><option value="other">Autre marque</option></select>
-        <label for="order-mode">Les photos sont classées…</label><select id="order-mode"><option value="GRID">Comme la maquette du feed</option><option value="PUBLICATION">Dans l’ordre de publication</option></select>
-        <p id="order-help" class="hint"></p>
-        <p id="server-ai-status" class="hint" role="status" hidden>Captions IA activées. Aucune clé à saisir.</p>
-        <details class="ai-settings"><summary>Captions automatiques <span>optionnel</span></summary>
-          <p id="ai-description" class="hint">Analyse chaque photo et adapte les captions en anglais au type de compte. Les images et le brief sont envoyés à OpenAI après votre clic. L’API est facturée sur votre compte.</p>
-          <div id="browser-ai-key-controls"><label for="api-key">Votre clé OpenAI API</label><input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
-          <p class="hint">Conservée uniquement dans cette fenêtre. <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Obtenir une clé</a></p></div>
-          <label for="brand-name">Nom de la marque <small>facultatif</small></label><input id="brand-name" maxlength="120" autocomplete="off" placeholder="Nom de l’hôtel ou du restaurant">
-          <label for="brand-brief">Informations confirmées <small>facultatif</small></label><textarea id="brand-brief" rows="3" maxlength="3000" placeholder="Audience, ambiance, lieu confirmé, objectif du feed…"></textarea>
-          <label for="tone">Ton des captions</label><select id="tone"><option value="Refined, warm and understated">Élégant et chaleureux</option><option value="Friendly, natural and inviting">Simple et convivial</option><option value="Vivid and appetizing, without exaggeration">Gourmand et vivant</option></select>
-          <label for="required-hashtags">Hashtags de marque <small>facultatif</small></label><input id="required-hashtags" maxlength="200" placeholder="#VotreMarque">
-          <div id="browser-ai-model-controls"><label for="ai-model">Modèle API</label><input id="ai-model" value="gpt-4.1-mini" maxlength="100" autocomplete="off"></div>
-        </details>
-        <div class="privacy-note"><span aria-hidden="true">◈</span><p>Canva et Google demandent une connexion. L’import manuel et l’export Word restent disponibles hors connexion.</p></div>
-      </aside>
-      <section class="main-panel" aria-label="Photos et publications">
-        <details class="manual-import"><summary>Importer des fichiers manuellement <span>optionnel</span></summary>
-        <div class="panel upload-panel" id="drop-zone">
-          <div class="section-title"><span class="step">02</span><h2>Vos photos</h2><output id="photo-count">0 photo</output></div>
-          <div class="upload-body"><span class="upload-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3m-5 5 5-5 5 5M4 16v4h16v-4"/></svg></span><h3>Glissez vos photos ici</h3><p>ou choisissez les images exportées de Canva</p><label class="button button-secondary file-button" for="photo-input">Choisir les photos<input id="photo-input" type="file" accept="image/jpeg,image/png" multiple></label><p class="hint">JPG / PNG · 8 Mo par photo · 40 Mo par feed · 60 photos max.</p></div>
+
+    <section class="connections panel" aria-labelledby="connections-title">
+      <div class="connections-intro"><span class="connection-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 15 6-6m-8 8-1 1a4.2 4.2 0 0 1-6-6l4-4a4.2 4.2 0 0 1 6 0m4 0 1-1a4.2 4.2 0 0 1 6 6l-4 4a4.2 4.2 0 0 1-6 0" transform="translate(1 0) scale(.95)"/></svg></span><div><h2 id="connections-title">Vos connexions</h2><p id="connection-status" role="status" aria-live="polite">Vérification des connexions…</p></div></div>
+      <div class="connection-actions"><div class="provider"><span id="canva-connection-state" class="provider-state">Canva · vérification</span><button id="connect-canva" class="button button-secondary button-small" type="button" disabled>Connecter Canva</button></div><div class="provider"><span id="google-connection-state" class="provider-state">Google · vérification</span><button id="connect-google" class="button button-secondary button-small" type="button" disabled>Connecter Google</button></div></div>
+    </section>
+    <div id="configuration-notice" class="notice configuration-notice" role="status" hidden><strong id="configuration-title"></strong><p id="configuration-message"></p><a id="configured-origin-link" hidden>Ouvrir l’adresse configurée</a></div>
+    <div id="app-error" class="notice error-notice" role="alert" hidden><div><strong id="error-title">L’action n’a pas abouti</strong><p id="error-message"></p><a id="enable-sheets-api" href="https://console.cloud.google.com/apis/library/sheets.googleapis.com" target="_blank" rel="noopener noreferrer" hidden>Activer Google Sheets API dans mon projet</a></div><button id="dismiss-error" class="icon-button" type="button" aria-label="Fermer le message d’erreur">×</button></div>
+
+    <div id="planning" class="planning-layout">
+      <section class="panel setup-panel" aria-labelledby="setup-title">
+        <div class="section-heading"><span class="section-number">01</span><div><p class="eyebrow">VOTRE POINT DE DÉPART</p><h2 id="setup-title">Préparer un planning</h2></div></div>
+        <div class="mode-tabs" role="tablist" aria-label="Choisir comment démarrer"><button id="mode-new" type="button" role="tab" aria-selected="true" aria-controls="new-panel" tabindex="0">Nouveau planning</button><button id="mode-resume" type="button" role="tab" aria-selected="false" aria-controls="resume-panel" tabindex="-1">Reprendre un planning</button></div>
+        <div id="new-panel" role="tabpanel" aria-labelledby="mode-new">
+          <form id="new-planning-form">
+            <label for="canva-url">Lien du design Canva</label><input id="canva-url" name="canvaUrl" type="url" autocomplete="off" spellcheck="false" required placeholder="https://www.canva.com/design/…" aria-describedby="canva-url-help"><p id="canva-url-help" class="field-help">Un design avec une photo par page. Les pages exportées seront conservées dans votre Drive privé.</p>
+            <label for="project-title">Nom du planning</label><input id="project-title" name="title" maxlength="100" required value="Mon planning Instagram" autocomplete="off" placeholder="Ex. : Le Jardin · Novembre">
+            <label for="order-mode">Ordre des pages Canva</label><select id="order-mode" name="orderMode" aria-describedby="order-help"><option value="GRID">Comme une grille Instagram</option><option value="PUBLICATION">Dans l’ordre de publication</option></select><p id="order-help" class="order-help"></p>
+            <button id="create-planning" class="button button-primary button-full" type="submit" disabled>Créer le planning <span aria-hidden="true">↗</span></button><p id="create-requirements" class="action-help">Connectez Canva et Google pour créer votre planning.</p>
+          </form>
         </div>
-        </details>
-        <section id="grid-preview-section" class="panel grid-preview-section" hidden aria-label="Aperçu de la grille Instagram"><h3>Aperçu de la grille Instagram</h3><p class="hint">Les nouvelles publications sur le profil, hors posts épinglés.</p><div id="grid-preview" class="grid-preview"></div></section>
-        <div class="feed-toolbar"><p id="grid-label">Maquette du feed · déplacez les cartes pour ajuster l’ordre</p><button class="text-button" id="clear-photos" disabled>Tout retirer</button></div>
-        <div id="cards" class="cards" aria-label="Photos sélectionnées"></div>
-        <div id="empty-state" class="empty-state"><div class="empty-grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div><p>Votre feed apparaîtra ici.<br>Commencez avec 3 photos pour un premier essai.</p></div>
-        <div class="panel export-panel">
-          <div class="section-title"><span class="step">03</span><h2>Votre document</h2></div>
-          <p class="export-description">Une publication par page, dans l’ordre prévu. Vous pourrez compléter et corriger les textes dans Google Docs.</p>
-          <div class="actions"><button class="button button-secondary" id="generate-captions" disabled>Générer les captions EN <span aria-hidden="true">✦</span></button><button class="button button-primary" id="export-doc" disabled>Créer le document <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12"/></svg></button><button class="text-button" id="stop-generation" hidden>Arrêter</button></div>
-          <p class="hint">Les captions déjà remplies sont conservées. Relisez les propositions IA avant de les utiliser.</p>
-          <p id="status" role="status" aria-live="polite">Choisissez vos photos pour commencer.</p>
-          <div id="download-result" class="download-result" hidden><a id="download-link" class="download-link">Télécharger le document .docx</a><p>Pour l’ouvrir dans <a href="https://docs.google.com/document/u/0/" target="_blank" rel="noopener noreferrer">Google Docs</a> : icône dossier → <strong>Importer</strong> → choisissez ce fichier .docx.</p></div>
+        <div id="resume-panel" role="tabpanel" aria-labelledby="mode-resume" hidden>
+          <form id="resume-planning-form"><p class="resume-intro">Retrouvez vos photos, vos textes et leur ordre à partir du Google Sheets créé par Feed Studio.</p><label for="sheet-url">Lien du Google Sheets</label><input id="sheet-url" name="sheetUrl" type="url" required autocomplete="off" spellcheck="false" placeholder="https://docs.google.com/spreadsheets/d/…" aria-describedby="sheet-url-help"><p id="sheet-url-help" class="field-help">Votre planning reste disponible dans Google Sheets, même après la fermeture de cette page ou un redémarrage du serveur.</p><button id="resume-planning" class="button button-primary button-full" type="submit" disabled>Reprendre le planning <span aria-hidden="true">↗</span></button><p id="resume-requirements" class="action-help">Seule la connexion Google est nécessaire.</p></form>
         </div>
       </section>
+
+      <section id="empty-state" class="empty-state" aria-labelledby="empty-title">
+        <div class="sheet-illustration" aria-hidden="true"><div class="illustration-top"><span class="illustration-dot"></span><span>Mon planning</span><i></i></div><div class="illustration-header"><span>PHOTO</span><span>CAPTION</span><span>HASHTAGS</span></div><div class="illustration-row"><i class="sample-photo photo-one"></i><div><b></b><b></b></div><em></em></div><div class="illustration-row"><i class="sample-photo photo-two"></i><div><b></b><b></b></div><em></em></div><div class="illustration-row"><i class="sample-photo photo-three"></i><div><b></b><b></b></div><em></em></div><span class="illustration-check">✓ <span>Tout est à sa place</span></span></div>
+        <p class="eyebrow">LES PHOTOS D’ABORD. LES MOTS ENSUITE.</p><h2 id="empty-title">Un planning qui vous laisse<br>le temps d’écrire.</h2><p>Chaque photo a sa ligne dans Google Sheets.<br>Ajoutez vos captions et hashtags, puis revenez ici.</p>
+      </section>
+
+      <section id="job-panel" class="panel job-panel" aria-labelledby="job-title" hidden>
+        <div class="job-heading"><div><p class="eyebrow">VOTRE PLANNING</p><h2 id="job-title">Préparation du planning</h2></div><span id="job-badge" class="job-badge">En cours</span></div>
+        <div id="job-progress" class="job-progress"><progress id="progress-bar" max="100" value="8" aria-label="Avancement du traitement"></progress></div>
+        <p id="job-status" class="job-status" role="status" aria-live="polite"></p>
+        <div class="tracking-actions"><button id="stop-waiting" class="text-button" type="button" hidden>Arrêter le suivi</button><button id="continue-waiting" class="text-button" type="button" hidden>Reprendre le suivi</button><button id="new-project" class="text-button" type="button" hidden>Nouveau planning</button></div>
+        <div id="sheet-result" class="sheet-result" hidden><div class="resource-heading"><span class="resource-icon sheet-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7m-7 4h7m-4-4v7"/></svg></span><div><h3>Vos textes se préparent ici</h3><p>Rédigez les captions et hashtags dans Google Sheets. Les liens des photos restent privés.</p></div></div><a id="open-sheet" class="button button-sheet button-full" target="_blank" rel="noopener noreferrer">Ouvrir Google Sheets <span aria-hidden="true">↗</span></a><p class="saved-note"><span aria-hidden="true">✓</span> Gardez ce lien pour reprendre votre planning plus tard.</p></div>
+        <div id="document-actions" class="document-actions" hidden><div class="resource-heading"><span class="resource-icon document-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7m-7 4h7m-7 3h4"/></svg></span><div><h3>Prêt pour la présentation ?</h3><p>Actualisez l’aperçu pour relire vos textes. La création du document relit aussi la dernière version du Sheet.</p></div></div><div class="result-actions"><button id="refresh-texts" class="button button-secondary" type="button" disabled>Actualiser les textes</button><button id="export-document" class="button button-primary" type="button" disabled>Créer le Google Doc <span aria-hidden="true">↗</span></button></div><p id="export-requirements" class="action-help" hidden>Connectez Google pour actualiser les textes et créer le document.</p></div>
+        <div id="document-result" class="document-result" hidden><span class="result-check" aria-hidden="true">✓</span><div><h3>Votre Google Doc est prêt</h3><p>Photos Canva, captions et hashtags, dans l’ordre du planning.</p><a id="open-document" target="_blank" rel="noopener noreferrer">Ouvrir le Google Doc <span aria-hidden="true">↗</span></a></div></div>
+      </section>
     </div>
-    <footer>Feed Studio <span>Photos originales conservées · Aucun post publié automatiquement</span></footer>
+
+    <section id="preview-section" class="preview-section" aria-labelledby="preview-title" hidden><div class="preview-heading"><div><p class="eyebrow">VUE D’ENSEMBLE</p><h2 id="preview-title">Vos publications</h2><p id="preview-description">Les textes affichés viennent de Google Sheets.</p></div><span id="photo-count" class="photo-count"></span></div><div id="preview-note" class="preview-note"><span aria-hidden="true">↗</span><p>Modifiez vos textes dans <a id="edit-sheet-link" target="_blank" rel="noopener noreferrer">Google Sheets</a>, puis cliquez sur « Actualiser les textes ». L’ordre du planning reste fixe.</p></div><div id="cards" class="cards"></div></section>
+    <footer><span>Feed Studio</span><p>Vos photos restent privées dans Google Drive. Aucune publication automatique.</p></footer>
   </main>
-  <script>{{DOCX}}</script>
-  <script>{{CANVA}}</script>
   <script>{{APP}}</script>
 </body>
 </html>

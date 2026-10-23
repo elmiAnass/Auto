@@ -237,13 +237,14 @@ export async function exportCanvaPages(value, accessToken, {
   throw fail('Canva export is taking too long. Please retry later.', 'canva', 504);
 }
 
-export async function createGoogleDocument(docxBytes, accessToken, { title = 'Instagram feed', fetchImpl = fetch } = {}) {
+export async function createGoogleDocument(docxBytes, accessToken, { title = 'Instagram feed', folderId, fetchImpl = fetch } = {}) {
   if (!(docxBytes instanceof Uint8Array) || !docxBytes.length || docxBytes.byteLength > 45 * 1024 * 1024) {
     throw fail('The review document must contain data and be smaller than 45 MB.', 'google', 400);
   }
   if (typeof title !== 'string' || !title.trim() || title.length > 200) throw fail('Use a document title of 1 to 200 characters.', 'google', 400);
+  if (folderId !== undefined && (typeof folderId !== 'string' || !/^[A-Za-z0-9_-]{5,200}$/.test(folderId))) throw fail('The Google folder ID is invalid.', 'google', 400);
   const boundary = 'feedstudio_' + randomBytes(18).toString('hex');
-  const metadata = JSON.stringify({ name: title.trim(), mimeType: 'application/vnd.google-apps.document' });
+  const metadata = JSON.stringify({ name: title.trim(), mimeType: 'application/vnd.google-apps.document', ...(folderId ? { parents: [folderId] } : {}) });
   const body = Buffer.concat([
     Buffer.from('--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + metadata + '\r\n'),
     Buffer.from('--' + boundary + '\r\nContent-Type: ' + DOCX_TYPE + '\r\n\r\n'),
