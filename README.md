@@ -4,6 +4,8 @@ Collez le **lien d’un design Canva contenant une photo par page**. L’outil e
 
 ## Mise en ligne sur Render
 
+Render peut demander une carte bancaire, même avec une instance Free. Le choix d’un Web Service manuel ne garantit pas de supprimer cette vérification. Si votre compte bloque le déploiement à cette étape, utilisez le [guide de test local](docs/local-run.md) pour tester le même serveur sur votre ordinateur, sans hébergement.
+
 [Créer le service avec les réglages préparés](https://render.com/deploy?repo=https://github.com/elmiAnass/Auto)
 
 Connectez votre compte Render à GitHub et confirmez le Blueprint. [render.yaml](render.yaml) prépare Node, la construction, le démarrage, l’écoute réseau et le contrôle de santé. Aucun secret n’est demandé pour ce premier déploiement : les connexions restent désactivées jusqu’à leur configuration.
