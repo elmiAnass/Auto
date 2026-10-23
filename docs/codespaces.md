@@ -37,6 +37,8 @@ Dans [Google OAuth Clients](https://console.cloud.google.com/auth/clients), ouvr
 
 Les URL doivent correspondre exactement à l’origine configurée dans `PUBLIC_ORIGIN`. Si vous recréez le Codespace et que son adresse change, mettez à jour ces trois réglages.
 
+Si Canva renvoie `invalid_scope` avec « Requested scopes are not allowed for this client », ouvrez la même intégration que le Client ID configuré. Dans **Outside Canva → Configuration**, activez **Canva REST APIs**, puis dans **Scopes** activez la lecture de `design:content` (`design:content:read`) et sauvegardez. Revenez à la page principale Feed Studio et relancez **Connecter Canva** ; recharger l’ancien callback ne lance pas une nouvelle autorisation.
+
 Vérifiez dans le projet Google que Drive API et Docs API sont activées et que votre compte figure parmi les utilisateurs de test si le consentement OAuth est en mode Testing.
 
 ## Essayer le feed

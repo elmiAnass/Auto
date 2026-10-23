@@ -217,6 +217,48 @@ test('OAuth uses PKCE, session-bound one-use state and secure cookie attributes'
   assert.ok(!JSON.stringify(session).includes('canva-token'));
 });
 
+test('invalid OAuth scopes give provider-specific guidance without exposing callback data or exchanging codes', async t => {
+  let exchanges = 0;
+  const state = await fixture(t, { providers: {
+    async exchangeOAuthCode() { exchanges++; throw new Error('No code exchange should happen after OAuth rejection.'); }
+  } });
+  for (const provider of ['canva', 'google']) {
+    await state.request('/oauth/start/' + provider);
+    const issued = state.calls.oauth.at(-1);
+    const callback = '/oauth/callback/' + provider + '?' + new URLSearchParams({
+      state: issued.state, error: 'invalid_scope', error_description: 'private-provider-detail', code: 'private-unused-code'
+    });
+    const response = await state.request(callback);
+    assert.equal(response.status, 400);
+    const raw = await response.text();
+    assert.match(JSON.parse(raw).error, provider === 'canva' ? /design:content:read/ : /drive\.file/);
+    for (const hidden of [issued.state, 'private-provider-detail', 'private-unused-code']) assert.ok(!raw.includes(hidden));
+    assert.equal((await state.session()).connected[provider], false);
+    assert.equal((await state.request(callback)).status, 400, 'Rejected callbacks still consume their one-use state.');
+  }
+  assert.equal(exchanges, 0);
+});
+
+test('a callback without a code gives retry guidance and unrecognized errors stay sanitized', async t => {
+  let exchanges = 0;
+  const state = await fixture(t, { providers: {
+    async exchangeOAuthCode() { exchanges++; throw new Error('Unexpected exchange.'); }
+  } });
+  for (const error of [null, 'untrusted-upstream-detail']) {
+    await state.request('/oauth/start/canva');
+    const issued = state.calls.oauth.at(-1);
+    const params = new URLSearchParams({ state: issued.state });
+    if (error) params.set('error', error);
+    const response = await state.request('/oauth/callback/canva?' + params);
+    assert.equal(response.status, 400);
+    const raw = await response.text();
+    assert.match(JSON.parse(raw).error, error ? /not authorized/ : /no authorization code/);
+    assert.ok(!raw.includes(issued.state));
+    if (error) assert.ok(!raw.includes(error));
+  }
+  assert.equal(exchanges, 0);
+});
+
 test('expired OAuth state and expired browser sessions cannot authorize', async t => {
   const state = await fixture(t);
   await state.request('/oauth/start/canva');

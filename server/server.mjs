@@ -351,7 +351,17 @@ export function createApp({ config = readConfig(), providers, fetchImpl = global
       }
       delete session.oauth[provider];
       const code = url.searchParams.get('code');
-      if (!code || url.searchParams.has('error')) throw new HttpError(400, 'Connection was not authorized. You can retry from the application.');
+      if (url.searchParams.has('error')) {
+        // Do not expose provider descriptions or callback credentials. Only map
+        // known OAuth errors to static guidance for the administrator.
+        if (url.searchParams.get('error') === 'invalid_scope') {
+          throw new HttpError(400, provider === 'canva'
+            ? 'Canva refused the requested permission. Enable design:content:read in the same Canva integration, save it, then restart the connection from the application.'
+            : 'Google refused the requested permission. Check drive.file access in the Google OAuth application, then restart the connection from the application.');
+        }
+        throw new HttpError(400, 'Connection was not authorized. You can retry from the application.');
+      }
+      if (!code) throw new HttpError(400, 'The account provider returned no authorization code. Restart the connection from the application.');
       try {
         session.tokens[provider] = await providers.exchangeOAuthCode(provider, config, { code, codeVerifier: pending.codeVerifier, fetchImpl: linkedFetch });
       } catch { throw new HttpError(502, 'Could not complete ' + provider + ' connection. Check application configuration and retry.'); }
