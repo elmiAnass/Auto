@@ -337,6 +337,21 @@ test('configuration accepts local development and HTTPS only, with no credential
   }
 });
 
+test('Render supplies the OAuth origin automatically while explicit configuration takes precedence', () => {
+  const rendered = readConfig({
+    RENDER_EXTERNAL_URL: 'https://feed-studio-example.onrender.com',
+    PORT: '10000', FEED_STUDIO_HOST: '0.0.0.0'
+  });
+  assert.equal(rendered.publicOrigin, 'https://feed-studio-example.onrender.com');
+  assert.equal(rendered.port, 10000);
+  assert.equal(rendered.host, '0.0.0.0');
+  assert.equal(readConfig({
+    RENDER_EXTERNAL_URL: 'https://feed-studio-example.onrender.com',
+    PUBLIC_ORIGIN: 'https://studio.example.com'
+  }).publicOrigin, 'https://studio.example.com');
+  assert.throws(() => readConfig({ RENDER_EXTERNAL_URL: 'http://untrusted.example.com' }), /PUBLIC_ORIGIN/);
+});
+
 test('real adapters and HTTP backend cooperate across OAuth, Canva export, native Drive import and caption updates', async t => {
   const upstream = [];
   let state, uploadedDocx;

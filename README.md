@@ -2,6 +2,20 @@
 
 Collez le **lien d’un design Canva contenant une photo par page**. L’outil exporte les pages, les classe dans l’ordre de publication et crée un **Google Doc natif privé**. Choisissez ensuite le type de compte (hôtel, restaurant ou autre), préparez les captions en anglais et envoyez-les dans ce même document.
 
+## Mise en ligne sur Render
+
+[Créer le service avec les réglages préparés](https://render.com/deploy?repo=https://github.com/elmiAnass/Auto)
+
+Connectez votre compte Render à GitHub et confirmez le Blueprint. [render.yaml](render.yaml) prépare Node, la construction, le démarrage, l’écoute réseau et le contrôle de santé. Aucun secret n’est demandé pour ce premier déploiement : les connexions restent désactivées jusqu’à leur configuration.
+
+Récupérez le lien HTTPS attribué par Render. Le serveur le reconnaît automatiquement via `RENDER_EXTERNAL_URL` ; `PUBLIC_ORIGIN` est facultatif sur Render et permet de choisir un domaine personnalisé.
+
+Configurez ensuite les applications sur [Canva Integrations](https://www.canva.com/developers/integrations) et [Google Auth Platform](https://console.cloud.google.com/auth/overview). Les callbacks à enregistrer sont le lien HTTPS Render suivi de `/oauth/callback/canva` et `/oauth/callback/google`. Activez [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com) et [Google Docs API](https://console.cloud.google.com/apis/library/docs.googleapis.com). Créez un client Google de type **Web application** ; si l’application est en mode Testing, ajoutez votre adresse dans les utilisateurs de test.
+
+Dans **Render → service → Environment**, ajoutez `CANVA_CLIENT_ID`, `CANVA_CLIENT_SECRET`, `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET`, puis sauvegardez et redéployez. Les secrets vont uniquement dans ces champs sécurisés. Les scopes et callbacks sont détaillés plus bas.
+
+Ouvrez ensuite le lien Render, puis **Connecter Canva** et **Connecter Google**. Aucun déploiement Render ni accès à vos comptes n’a été effectué depuis cette conversation ; ce lien ouvre la préparation du déploiement.
+
 ## Utilisation après activation
 
 1. Ouvrez l’application servie par le serveur Feed Studio.
@@ -41,7 +55,7 @@ Configurez les valeurs dans des paramètres d’environnement sécurisés. [.env
 
 | Nom | Usage |
 | --- | --- |
-| `PUBLIC_ORIGIN` | Origine HTTPS publique du serveur, sans chemin ; HTTP local autorisé uniquement en développement |
+| `PUBLIC_ORIGIN` | Origine HTTPS publique du serveur, sans chemin ; facultatif sur Render qui fournit `RENDER_EXTERNAL_URL` |
 | `CANVA_CLIENT_ID` | Identifiant de l’intégration Canva Connect |
 | `CANVA_CLIENT_SECRET` | Secret de l’intégration Canva, utilisé uniquement côté serveur |
 | `GOOGLE_CLIENT_ID` | Identifiant du client OAuth Google de type application Web |
@@ -101,7 +115,7 @@ python3 tests/browser_smoke.py
 
 Les tests Node vérifient les exports DOCX, OAuth, les adaptateurs et le serveur HTTP. Un test branche les vrais adaptateurs sur le serveur avec des réponses HTTP externes simulées. Les tests Chromium utilisent de vraies images et des téléchargements DOCX ; OAuth, Canva, Google et OpenAI y sont simulés. La pagination DOCX a aussi été contrôlée par conversion LibreOffice en PDF. Ces tests ne valident ni les autorisations de vos comptes ni la qualité d’une génération IA réelle.
 
-Résultats de cette version : **79 tests Node et 15 essais Chromium réussis**. Le démarrage réel du serveur, sa page et son état de connexion ont été vérifiés ; les deux applications OAuth sont actuellement non configurées.
+Validation : **tests Node et 15 essais Chromium réussis**. Le démarrage réel du serveur, sa page et son état de connexion ont été vérifiés ; les deux applications OAuth sont actuellement non configurées. La configuration automatique de l’origine Render est couverte par les tests du serveur.
 
 Le navigateur géré ici bloque les URL `file://` ; les essais navigateur servent le même HTML par HTTP local temporaire. L’ouverture locale reste disponible uniquement pour l’import manuel et l’export Word, sans connexion Canva.
 

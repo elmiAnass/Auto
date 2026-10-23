@@ -23,7 +23,7 @@ class HttpError extends Error {
 export function readConfig(env = process.env) {
   const port = Number(env.FEED_STUDIO_PORT || env.PORT || 3000);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid FEED_STUDIO_PORT.');
-  const publicOrigin = env.PUBLIC_ORIGIN || 'http://127.0.0.1:' + port;
+  const publicOrigin = env.PUBLIC_ORIGIN || env.RENDER_EXTERNAL_URL || 'http://127.0.0.1:' + port;
   let origin;
   try { origin = new URL(publicOrigin); } catch { throw new Error('PUBLIC_ORIGIN must be a valid origin.'); }
   const local = ['127.0.0.1', 'localhost', '[::1]'].includes(origin.hostname);

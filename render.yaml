@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: canva-feed-studio
+    runtime: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 24.19.0
+      - key: FEED_STUDIO_HOST
+        value: 0.0.0.0
