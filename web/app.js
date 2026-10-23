@@ -248,6 +248,15 @@
     return 'data:' + post.mime + ';base64,' + chunks.join('');
   }
 
+  function captionContext(post, required) {
+    return {
+      accountType: $('account-type').value, brand: $('brand-name').value.trim(),
+      verifiedDetails: $('brand-brief').value.trim(), photoFacts: post.facts,
+      tone: $('tone').value, requiredHashtags: required,
+      recentCaptions: posts.filter(function (p) { return p.caption.trim(); }).slice(-3).map(function (p) { return p.caption; })
+    };
+  }
+
   function captionPayload(post, required) {
     return {
       model: $('ai-model').value.trim() || 'gpt-4.1-mini',
@@ -289,21 +298,27 @@
       .filter(function (part) { return part && part.type === 'output_text' && typeof part.text === 'string'; }).map(function (part) { return part.text; }).join('');
     var result;
     try { result = JSON.parse(text); } catch (_) { throw new Error('La réponse IA ne contient pas de caption valide.'); }
+    return normalizeDraft(result, required, false);
+  }
+
+  function normalizeDraft(result, required, serverManaged) {
     if (!result || typeof result.subject !== 'string' || !result.subject.trim() || result.subject.length > 120 ||
         typeof result.caption !== 'string' || !result.caption.trim() || result.caption.trim().length > 900 ||
-        result.caption.trim().split(/\r?\n/).length > 6 || !Array.isArray(result.hashtags) ||
-        result.hashtags.some(function (tag) { return typeof tag !== 'string'; })) {
+        result.caption.trim().split(/\r?\n/).length > 6 ||
+        (serverManaged ? typeof result.hashtags !== 'string' : !Array.isArray(result.hashtags) ||
+          result.hashtags.some(function (tag) { return typeof tag !== 'string'; }))) {
       throw new Error('Caption IA non conforme. Réessayez ce post.');
     }
-    var tags = normalizeHashtags(required.concat(result.hashtags));
+    var tags = normalizeHashtags(required.concat(serverManaged ? normalizeHashtags(result.hashtags) : result.hashtags));
     if (!tags.length) throw new Error('La réponse IA ne contient pas de hashtags.');
     return {subject: result.subject.trim(), caption: result.caption.trim(), hashtags: tags.join(' ')};
   }
 
   async function generateCaptions() {
     if (busy || !posts.length) return;
-    var key = $('api-key').value.trim();
-    if (!/^sk-[A-Za-z0-9_-]{16,}$/.test(key)) {
+    var serverManaged = Boolean(nativeJob && canvaBridge && canvaBridge.isServerAIAvailable());
+    var key = serverManaged ? '' : $('api-key').value.trim();
+    if (!serverManaged && !/^sk-[A-Za-z0-9_-]{16,}$/.test(key)) {
       document.querySelector('.ai-settings').open = true;
       $('api-key').focus();
       status('Ajoutez votre clé OpenAI dans Captions automatiques. Vous pouvez aussi exporter sans IA.', 'error');
@@ -321,28 +336,43 @@
     try {
       for (var post of pending) {
         if (stopRequested) break;
+        if (post.caption.trim()) continue;
         status('Analyse de ' + post.name + '… ' + completed + ' / ' + pending.length + ' caption(s) enregistrée(s).');
         activeController = new AbortController();
         var timer = setTimeout(function () { if (activeController) activeController.abort(); }, 90000);
         try {
-          var response;
-          try {
-            response = await fetch('https://api.openai.com/v1/responses', {
-              method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + key},
-              body: JSON.stringify(captionPayload(post, required)), signal: activeController.signal,
-              credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error'
-            });
-          } catch (_) {
-            if (stopRequested) break;
-            throw new Error('Connexion IA impossible ou délai dépassé. Vérifiez votre connexion et réessayez.');
+          var draft;
+          if (serverManaged) {
+            try {
+              draft = await canvaBridge.generateCaption(post.id, captionContext(post, required), {signal: activeController.signal});
+            } catch (error) {
+              if (error.name === 'AbortError') throw new Error('Connexion IA interrompue ou délai dépassé. Réessayez ce post.');
+              throw error;
+            }
+            draft = normalizeDraft(draft, required, true);
+          } else {
+            var response;
+            try {
+              response = await fetch('https://api.openai.com/v1/responses', {
+                method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + key},
+                body: JSON.stringify(captionPayload(post, required)), signal: activeController.signal,
+                credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error'
+              });
+            } catch (_) {
+              if (stopRequested) break;
+              throw new Error('Connexion IA impossible ou délai dépassé. Vérifiez votre connexion et réessayez.');
+            }
+            draft = await parseResponse(response, required);
           }
-          var draft = await parseResponse(response, required);
+          if (stopRequested) break;
+          if (post.caption.trim()) continue;
           Object.assign(post, draft);
           completed++;
           render();
         } finally { clearTimeout(timer); activeController = null; }
       }
-      status((stopRequested ? 'Traitement arrêté. ' : '') + completed + ' caption(s) enregistrée(s). Relisez les textes, puis créez le document.', 'success');
+      status((stopRequested ? 'Traitement arrêté. ' : '') + completed + ' caption(s) enregistrée(s). Relisez les textes, puis ' +
+        (nativeJob ? 'ajoutez-les au Google Doc.' : 'créez le document.'), 'success');
     } catch (error) {
       status((stopRequested ? 'Traitement arrêté.' : error.message) + '\n' + completed + ' caption(s) conservée(s). Relancez pour continuer les posts restants.', stopRequested ? 'success' : 'error');
     } finally {

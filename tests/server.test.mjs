@@ -45,9 +45,37 @@ function unzipStored(input) {
   return entries;
 }
 
+const OPENAI_TEST_KEY = 'sk-test-server-only-not-a-real-key';
+const OPENAI_TEST_MODEL = 'test-caption-model';
+
+function captionContext(overrides = {}) {
+  return {
+    accountType: 'restaurant', brand: 'Table & Terrace',
+    verifiedDetails: 'Family-run restaurant. Outdoor tables are available.',
+    photoFacts: 'A table is set for dinner.', tone: 'Warm and understated',
+    requiredHashtags: ['#TableAndTerrace'], recentCaptions: ['A quiet corner for lunch.'],
+    ...overrides
+  };
+}
+
+function captionReply(overrides = {}) {
+  return new Response(JSON.stringify({
+    status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify({
+      subject: '  Dinner table  ', caption: '  A table set for a relaxed evening.\r\nMake yourself comfortable.  ',
+      hashtags: ['#Dining', '#dining', '#TableAndTerrace'], ...overrides
+    }) }] }]
+  }), { headers: { 'Content-Type': 'application/json' } });
+}
+
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+
 async function fixture(t, options = {}) {
   let clock = options.clock ?? 1_800_000_000_000;
-  const calls = { oauth: [], refresh: [], resolve: [], export: [], uploads: [], fills: [], images: [] };
+  const calls = { oauth: [], refresh: [], resolve: [], export: [], uploads: [], fills: [], images: [], openai: [] };
   const images = [png(1, 2, [180, 20, 20]), png(2, 3, [20, 180, 20]), png(3, 4, [20, 20, 180])];
   const config = {
     publicOrigin: 'http://127.0.0.1:3000', canvaClientId: 'canva-client',
@@ -88,7 +116,11 @@ async function fixture(t, options = {}) {
     },
     ...(options.providers || {})
   };
-  const fetchImpl = options.fetchImpl || (async url => {
+  const fetchImpl = options.fetchImpl || (async (url, init = {}) => {
+    if (url === 'https://api.openai.com/v1/responses') {
+      calls.openai.push({ url, ...init });
+      return options.openaiFetch ? options.openaiFetch(url, init) : captionReply();
+    }
     calls.images.push(url);
     const index = Number(url.match(/page(\d+)\.png/)?.[1]);
     return new Response(images[index], { status: 200, headers: { 'Content-Type': 'image/png' } });
@@ -104,8 +136,8 @@ async function fixture(t, options = {}) {
     const headers = { ...(ownCookie ? { Cookie: ownCookie } : {}), ...(init.headers || {}) };
     return fetch(base + pathname, { redirect: 'manual', ...init, headers });
   };
-  state.session = async () => {
-    const response = await state.request('/api/session');
+  state.session = async (ownCookie = state.cookie) => {
+    const response = await state.request('/api/session', {}, ownCookie);
     state.cookie = response.headers.get('set-cookie')?.split(';')[0] || state.cookie;
     const data = await response.json();
     state.csrf = data.csrfToken;
@@ -137,6 +169,14 @@ async function fixture(t, options = {}) {
     }
     throw new Error('Job did not finish.');
   };
+  state.readyImport = async (orderMode = 'GRID') => {
+    await state.connect('canva'); await state.connect('google');
+    const id = await state.startImport(orderMode), job = await state.waitJob(id);
+    assert.equal(job.status, 'ready', job.error);
+    return job;
+  };
+  state.generate = (job, imageId = job.posts[0].id, context = captionContext(), extra = {}) =>
+    state.post('/api/jobs/' + job.id + '/generate-caption', { imageId, context, ...extra });
   await state.session();
   return state;
 }
@@ -145,7 +185,7 @@ test('health and served page work before OAuth configuration', async t => {
   const state = await fixture(t, { config: { canvaClientId: '', googleClientSecret: '' } });
   assert.deepEqual(await (await state.request('/healthz')).json(), { ok: true });
   const session = await state.session();
-  assert.deepEqual(session.configured, { canva: false, google: false });
+  assert.deepEqual(session.configured, { canva: false, google: false, openai: false });
   assert.deepEqual(session.connected, { canva: false, google: false });
   assert.ok(!JSON.stringify(session).includes('canva-secret'));
   const html = await (await state.request('/')).text();
@@ -292,6 +332,301 @@ test('missing Google placeholders are reported and only confirmed replacements a
   const refreshed = await (await state.request('/api/jobs/' + id)).json();
   assert.equal(refreshed.posts[0].syncedCaption, 'One confirmed caption.');
   assert.equal(refreshed.posts[0].syncedHashtags, '');
+});
+
+test('server captions use the selected cached photo, bounded context and administrator configuration', async t => {
+  const state = await fixture(t, { config: { openaiApiKey: OPENAI_TEST_KEY, openaiModel: OPENAI_TEST_MODEL } });
+  const job = await state.readyImport('GRID');
+  const context = captionContext({ brand: '  Table & Terrace  ',
+    prompt: 'untrusted-extra-prompt', model: 'untrusted-context-model', imageUrl: 'https://evil.invalid/context.png' });
+  for (const post of [job.posts[1], job.posts[0]]) {
+    const response = await state.generate(job, post.id, context, {
+      model: 'untrusted-client-model', apiKey: 'untrusted-client-key',
+      prompt: 'untrusted-client-prompt', instructions: 'untrusted-client-instructions',
+      url: 'http://127.0.0.1/private', imageUrl: 'https://evil.invalid/photo.png', image: 'arbitrary-bytes'
+    });
+    assert.equal(response.status, 200, await response.clone().text());
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.deepEqual(await response.json(), {
+      subject: 'Dinner table', caption: 'A table set for a relaxed evening.\nMake yourself comfortable.',
+      hashtags: '#TableAndTerrace #Dining'
+    });
+    const call = state.calls.openai.at(-1), body = JSON.parse(call.body);
+    assert.equal(call.url, 'https://api.openai.com/v1/responses');
+    assert.equal(call.method, 'POST');
+    assert.equal(call.redirect, 'error');
+    assert.equal(call.headers.Authorization, 'Bearer ' + OPENAI_TEST_KEY);
+    assert.equal(body.model, OPENAI_TEST_MODEL);
+    assert.equal(body.store, false);
+    assert.equal(body.text.format.type, 'json_schema');
+    assert.equal(body.text.format.strict, true);
+    assert.equal(body.input.length, 1);
+    assert.equal(body.input[0].role, 'user');
+    assert.equal(body.input[0].content.length, 2);
+    const [text, image] = body.input[0].content;
+    assert.deepEqual(JSON.parse(text.text), {
+      account_type: 'restaurant', brand: 'Table & Terrace',
+      verified_details: context.verifiedDetails, photo_facts: context.photoFacts, tone: context.tone,
+      required_hashtags: context.requiredHashtags, recent_captions: context.recentCaptions
+    });
+    assert.equal(image.type, 'input_image');
+    assert.match(image.image_url, /^data:image\/png;base64,/);
+    assert.deepEqual(Buffer.from(image.image_url.split(',')[1], 'base64'), state.images[post.sourceIndex - 1]);
+    assert.match(body.instructions, /untrusted data/i);
+    assert.ok(!call.body.includes('untrusted-'));
+    assert.ok(!call.body.includes('evil.invalid'));
+    assert.ok(!call.body.includes('127.0.0.1'));
+    assert.ok(!call.body.includes(post.id));
+  }
+  assert.equal(state.calls.openai.length, 2);
+  assert.equal(state.calls.images.length, 3, 'generation reuses downloaded bytes');
+  assert.equal(state.calls.fills.length, 0, 'a draft does not change Google Docs');
+  const refreshed = await (await state.request('/api/jobs/' + job.id)).json();
+  assert.ok(refreshed.posts.every(post => !post.captionSynced && !post.syncedCaption));
+  const session = await state.session();
+  assert.deepEqual(session.configured, { canva: true, google: true, openai: true });
+  const publicOutput = JSON.stringify({ session, job: refreshed }) + await (await state.request('/')).text();
+  for (const secret of [OPENAI_TEST_KEY, OPENAI_TEST_MODEL, 'canva-secret', 'google-secret', 'canva-token', 'google-token']) {
+    assert.ok(!publicOutput.includes(secret), 'public responses must omit ' + secret);
+  }
+});
+
+test('caption configuration uses environment values without exposing them and missing keys fail safely', async t => {
+  const config = readConfig({ OPENAI_API_KEY: OPENAI_TEST_KEY, OPENAI_MODEL: OPENAI_TEST_MODEL });
+  assert.equal(config.openaiApiKey, OPENAI_TEST_KEY);
+  assert.equal(config.openaiModel, OPENAI_TEST_MODEL);
+  assert.equal(readConfig({}).openaiApiKey, '');
+  assert.equal(readConfig({}).openaiModel, 'gpt-4.1-mini');
+  const state = await fixture(t);
+  const job = await state.readyImport();
+  const response = await state.generate(job);
+  assert.equal(response.status, 503);
+  assert.match((await response.json()).error, /administrator|configured/i);
+  assert.equal((await state.session()).configured.openai, false);
+  assert.equal(state.calls.openai.length, 0);
+});
+
+test('caption generation enforces CSRF, origin, browser ownership and image membership before OpenAI', async t => {
+  const state = await fixture(t, { config: { openaiApiKey: OPENAI_TEST_KEY } });
+  const job = await state.readyImport();
+  const path = '/api/jobs/' + job.id + '/generate-caption';
+  const body = { imageId: job.posts[0].id, context: captionContext() };
+  let response = await state.post(path, body, { 'X-CSRF-Token': 'incorrect' });
+  assert.equal(response.status, 403);
+  response = await state.post(path, body, { Origin: 'https://evil.invalid' });
+  assert.equal(response.status, 403);
+  response = await state.request(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, '');
+  assert.equal(response.status, 401);
+  response = await state.generate(job, 'not-an-import-image');
+  assert.equal(response.status, 404);
+  response = await state.generate(job, 2);
+  assert.equal(response.status, 400);
+  response = await state.generate(job, 'https://evil.invalid/photo.png');
+  assert.equal(response.status, 404);
+  const secondJob = await state.waitJob(await state.startImport());
+  response = await state.generate(secondJob, job.posts[0].id);
+  assert.equal(response.status, 404);
+  await state.session('');
+  response = await state.post(path, body);
+  assert.equal(response.status, 404);
+  assert.equal(state.calls.openai.length, 0);
+  assert.equal(state.calls.images.length, 6);
+});
+
+test('caption generation waits for a completed Google document and protects captions already transferred', async t => {
+  const upload = deferred(), entered = deferred();
+  t.after(() => upload.resolve());
+  const state = await fixture(t, {
+    config: { openaiApiKey: OPENAI_TEST_KEY },
+    providers: { async createGoogleDocument() {
+      entered.resolve();
+      await upload.promise;
+      return { id: 'delayed-doc', url: 'https://docs.google.com/document/d/delayed-doc/edit' };
+    } }
+  });
+  await state.connect('canva'); await state.connect('google');
+  const id = await state.startImport();
+  await entered.promise;
+  let response = await state.post('/api/jobs/' + id + '/generate-caption', { imageId: 'not-yet-ready', context: captionContext() });
+  assert.equal(response.status, 409);
+  upload.resolve();
+  const job = await state.waitJob(id);
+  assert.equal(job.status, 'ready');
+  response = await state.post('/api/jobs/' + id + '/captions', {
+    posts: [{ id: job.posts[0].id, caption: 'Already reviewed and transferred.', hashtags: '#Dining' }]
+  });
+  assert.equal(response.status, 200);
+  response = await state.generate(job);
+  assert.equal(response.status, 409);
+  assert.match((await response.json()).error, /already sent|Google Docs/i);
+  assert.equal(state.calls.openai.length, 0);
+});
+
+test('caption context rejects invalid shapes and oversized values before any upstream call', async t => {
+  const state = await fixture(t, { config: { openaiApiKey: OPENAI_TEST_KEY } });
+  const job = await state.readyImport();
+  const invalidContexts = [
+    null, [], {}, captionContext({ accountType: 'arbitrary' }),
+    captionContext({ brand: 'b'.repeat(121) }), captionContext({ brand: {} }),
+    captionContext({ verifiedDetails: 'v'.repeat(3001) }), captionContext({ photoFacts: 'p'.repeat(1501) }),
+    captionContext({ tone: 't'.repeat(201) }), captionContext({ requiredHashtags: '#Dining' }),
+    captionContext({ requiredHashtags: ['#one', '#two', '#three', '#four', '#five', '#six'] }),
+    captionContext({ requiredHashtags: ['https://evil.invalid'] }),
+    captionContext({ recentCaptions: ['one', 'two', 'three', 'four'] }),
+    captionContext({ recentCaptions: ['c'.repeat(901)] }), captionContext({ recentCaptions: [42] })
+  ];
+  for (const context of invalidContexts) {
+    const response = await state.generate(job, job.posts[0].id, context);
+    assert.equal(response.status, 400, JSON.stringify(context));
+    assert.equal(state.calls.openai.length, 0);
+  }
+  const context = captionContext({ brand: 'b'.repeat(120), verifiedDetails: 'v'.repeat(3000),
+    photoFacts: 'p'.repeat(1500), tone: 't'.repeat(200), recentCaptions: Array(3).fill('c'.repeat(900)) });
+  const response = await state.generate(job, job.posts[0].id, context);
+  assert.equal(response.status, 200);
+  const submitted = JSON.parse(JSON.parse(state.calls.openai[0].body).input[0].content[0].text);
+  assert.equal(submitted.brand.length, 120);
+  assert.equal(submitted.verified_details.length, 3000);
+  assert.equal(submitted.photo_facts.length, 1500);
+  assert.equal(submitted.tone.length, 200);
+  assert.deepEqual(submitted.recent_captions.map(value => value.length), [900, 900, 900]);
+});
+
+test('one pending caption generation blocks every job in the same session and then releases', async t => {
+  const gate = deferred(), entered = deferred();
+  t.after(() => gate.resolve());
+  let first = true;
+  const state = await fixture(t, { config: { openaiApiKey: OPENAI_TEST_KEY }, openaiFetch: async () => {
+    if (first) { first = false; entered.resolve(); await gate.promise; }
+    return captionReply();
+  } });
+  const job = await state.readyImport();
+  const otherJob = await state.waitJob(await state.startImport());
+  const pending = state.generate(job);
+  await entered.promise;
+  let response = await state.generate(job, job.posts[1].id);
+  assert.equal(response.status, 409);
+  response = await state.generate(otherJob);
+  assert.equal(response.status, 409);
+  assert.equal(state.calls.openai.length, 1);
+  gate.resolve();
+  assert.equal((await pending).status, 200);
+  assert.equal((await state.generate(otherJob)).status, 200);
+  assert.equal(state.calls.openai.length, 2);
+});
+
+test('caption generation limits shared upstream concurrency across browser sessions', async t => {
+  const gates = Array.from({ length: 3 }, deferred), entered = Array.from({ length: 3 }, deferred);
+  t.after(() => gates.forEach(gate => gate.resolve()));
+  let count = 0;
+  const state = await fixture(t, { config: { openaiApiKey: OPENAI_TEST_KEY }, openaiFetch: async () => {
+    const index = count++;
+    if (gates[index]) { entered[index].resolve(); await gates[index].promise; }
+    return captionReply();
+  } });
+  const pending = [];
+  for (let index = 0; index < 3; index++) {
+    if (index) await state.session('');
+    const job = await state.readyImport();
+    pending.push(state.generate(job));
+    await entered[index].promise;
+  }
+  await state.session('');
+  const job = await state.readyImport();
+  assert.equal((await state.generate(job)).status, 503);
+  assert.equal(state.calls.openai.length, 3);
+  gates.forEach(gate => gate.resolve());
+  for (const response of await Promise.all(pending)) assert.equal(response.status, 200);
+  assert.equal((await state.generate(job)).status, 200);
+  assert.equal(state.calls.openai.length, 4);
+});
+
+test('aborting a caption request cancels upstream work and releases the session', { timeout: 10000 }, async t => {
+  const entered = deferred(), aborted = deferred();
+  let first = true;
+  const state = await fixture(t, { config: { openaiApiKey: OPENAI_TEST_KEY }, openaiFetch: async (_url, init) => {
+    if (!first) return captionReply();
+    first = false;
+    entered.resolve();
+    return new Promise((resolve, reject) => {
+      const cancel = () => { aborted.resolve(); reject(new Error('upstream canceled')); };
+      if (init.signal.aborted) cancel();
+      else init.signal.addEventListener('abort', cancel, { once: true });
+    });
+  } });
+  const job = await state.readyImport();
+  const cancellation = new AbortController();
+  const pending = state.request('/api/jobs/' + job.id + '/generate-caption', {
+    method: 'POST', signal: cancellation.signal,
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': state.csrf },
+    body: JSON.stringify({ imageId: job.posts[0].id, context: captionContext() })
+  }).catch(error => error);
+  await entered.promise;
+  cancellation.abort();
+  assert.equal((await pending).name, 'AbortError');
+  await aborted.promise;
+  assert.equal((await state.generate(job)).status, 200);
+  assert.equal(state.calls.openai.length, 2);
+});
+
+test('upstream failures and malformed captions are sanitized and never leave generation busy', async t => {
+  const privateDetail = 'sensitive-provider-debug-' + OPENAI_TEST_KEY;
+  const failures = [
+    { status: 503, reply: () => new Response(privateDetail, { status: 401 }) },
+    { status: 503, reply: () => new Response(privateDetail, { status: 403 }) },
+    { status: 429, reply: () => new Response(privateDetail, { status: 429 }) },
+    { status: 502, reply: () => new Response(privateDetail, { status: 500 }) },
+    { status: 502, reply: () => { throw new Error(privateDetail); } },
+    { status: 502, reply: () => new Response(privateDetail) },
+    { status: 502, reply: () => captionReply({ caption: 'c'.repeat(901) }) },
+    { status: 502, reply: () => captionReply({ caption: Array(7).fill('line').join('\n') }) },
+    { status: 502, reply: () => captionReply({ hashtags: ['https://evil.invalid'] }) },
+    { status: 502, reply: () => new Response(JSON.stringify({ status: 'incomplete', output: [], incomplete_details: { reason: privateDetail } })) },
+    { status: 502, reply: () => new Response(JSON.stringify({ status: 'completed', output: [{ content: [{ type: 'refusal', refusal: privateDetail }] }] })) }
+  ];
+  let failure;
+  const state = await fixture(t, { config: { openaiApiKey: OPENAI_TEST_KEY }, openaiFetch: () => failure ? failure.reply() : captionReply() });
+  const job = await state.readyImport();
+  for (const item of failures) {
+    failure = item;
+    const response = await state.generate(job);
+    assert.equal(response.status, item.status);
+    const text = await response.text();
+    assert.equal(typeof JSON.parse(text).error, 'string');
+    assert.ok(!text.includes(privateDetail));
+    assert.ok(!text.includes(OPENAI_TEST_KEY));
+    failure = null;
+    assert.equal((await state.generate(job)).status, 200, 'retry must be allowed after failure');
+  }
+  assert.equal(state.calls.openai.length, failures.length * 2);
+  assert.equal(state.calls.fills.length, 0);
+});
+
+test('caption hourly limits apply per browser and server and reset after an hour', { timeout: 20000 }, async t => {
+  const state = await fixture(t, { config: { openaiApiKey: OPENAI_TEST_KEY } });
+  const firstJob = await state.readyImport();
+  const firstSession = { cookie: state.cookie, csrf: state.csrf };
+  for (let i = 0; i < 121; i++) {
+    assert.equal((await state.generate(firstJob, firstJob.posts[0].id, {})).status, 400);
+  }
+  assert.equal(state.calls.openai.length, 0, 'invalid input must not call OpenAI or spend the valid-request quota');
+  for (let i = 0; i < 120; i++) assert.equal((await state.generate(firstJob)).status, 200);
+  let response = await state.generate(firstJob);
+  assert.equal(response.status, 429);
+  assert.equal(state.calls.openai.length, 120);
+  await state.session('');
+  const secondJob = await state.readyImport();
+  for (let i = 0; i < 120; i++) assert.equal((await state.generate(secondJob)).status, 200);
+  await state.session('');
+  const thirdJob = await state.readyImport();
+  response = await state.generate(thirdJob);
+  assert.equal(response.status, 429);
+  assert.equal(state.calls.openai.length, 240, 'server limit stops an unused browser session');
+  state.advance(3_600_000);
+  assert.equal((await state.generate(thirdJob)).status, 200);
+  state.cookie = firstSession.cookie; state.csrf = firstSession.csrf;
+  assert.equal((await state.generate(firstJob)).status, 200, 'the original session limit also resets');
+  assert.equal(state.calls.openai.length, 242);
 });
 
 test('corrupt page downloads fail before creating any Google document', async t => {

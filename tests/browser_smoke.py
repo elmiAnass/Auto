@@ -187,9 +187,10 @@ class BrowserSmoke(unittest.TestCase):
         self.page.route("https://api.openai.com/v1/responses", handler)
         return calls
 
-    def load_connected_mode(self, *, configured=True, job_error=None):
+    def load_connected_mode(self, *, configured=True, job_error=None, openai=False, generation_statuses=None):
         """Mock same-origin server APIs while keeping real client DOM/image loading."""
         calls = []
+        remaining_generation_statuses = list(generation_statuses or [])
         document = {"id": "doc123", "url": "https://docs.google.com/document/d/doc123/edit"}
         metadata = [{"id": f"p{index}", "name": f"page-{index:02d}.jpg", "mime": "image/jpeg", "sourceIndex": index}
                     for index in range(1, 4)]
@@ -197,12 +198,12 @@ class BrowserSmoke(unittest.TestCase):
         def api_handler(route):
             request = route.request
             endpoint = urlsplit(request.url).path
-            entry = {"path": endpoint, "method": request.method, "headers": request.headers}
+            entry = {"path": endpoint, "method": request.method, "headers": request.all_headers()}
             if request.method == "POST":
                 entry["body"] = request.post_data_json
             calls.append(entry)
             if endpoint == "/api/session":
-                body = {"csrfToken": "test-csrf", "configured": {"canva": configured, "google": configured},
+                body = {"csrfToken": "test-csrf", "configured": {"canva": configured, "google": configured, "openai": openai},
                         "connected": {"canva": configured, "google": configured}}
             elif endpoint == "/api/import" and request.method == "POST":
                 body = {"jobId": "job123"}
@@ -215,6 +216,18 @@ class BrowserSmoke(unittest.TestCase):
                 number = int(endpoint[-1])
                 route.fulfill(status=200, content_type="image/jpeg", body=self.images[number - 1].read_bytes())
                 return
+            elif endpoint == "/api/jobs/job123/generate-caption" and request.method == "POST":
+                status = remaining_generation_statuses.pop(0) if remaining_generation_statuses else 200
+                if status != 200:
+                    route.fulfill(status=status, content_type="application/json", body=json.dumps({
+                        "error": "Caption generation temporarily unavailable. Try again."
+                    }))
+                    return
+                image_id = entry["body"]["imageId"]
+                required = entry["body"]["context"]["requiredHashtags"]
+                body = {"subject": "Visible subject of " + image_id,
+                        "caption": "Server English caption for " + image_id + ".",
+                        "hashtags": " ".join(required + ["#TravelDesign", "#VisualStory"])}
             elif endpoint == "/api/jobs/job123/captions" and request.method == "POST":
                 posts = entry["body"]["posts"]
                 body = {"updated": 6, "document": document, "posts": [
@@ -465,6 +478,140 @@ class BrowserSmoke(unittest.TestCase):
         expect(self.cards.nth(0).locator('textarea[data-field="caption"]')).to_be_disabled()
         expect(self.cards.nth(0).locator('textarea[data-field="hashtags"]')).to_be_enabled()
         expect(self.cards.nth(1).locator('textarea[data-field="caption"]')).to_be_enabled()
+
+    def test_16_server_caption_generation_needs_no_browser_key_and_sends_only_context_and_owned_ids(self):
+        self.context.add_cookies([{"name": "feed_test_session", "value": "test-browser-session", "url": self.url}])
+        backend = self.load_connected_mode(openai=True)
+        direct_vision = self.mock_captions()
+        self.page.locator(".ai-settings").evaluate("element => { element.open = true; }")
+        expect(self.page.locator("#server-ai-status")).to_contain_text("Aucune clé à saisir")
+        expect(self.page.locator("#api-key")).to_be_hidden()
+        expect(self.page.locator("#ai-model")).to_be_hidden()
+        self.start_canva_import()
+        expect(self.cards).to_have_count(3)
+        self.page.locator(".ai-settings").evaluate("element => { element.open = true; }")
+        expect(self.page.locator("#server-ai-status")).to_contain_text("Aucune clé à saisir")
+        expect(self.page.locator("#api-key")).to_be_hidden()
+        expect(self.page.locator("#ai-model")).to_be_hidden()
+        self.assertEqual(self.page.locator("#api-key").input_value(), "")
+        self.page.locator("#account-type").select_option("restaurant")
+        self.page.locator("#brand-name").fill("Café du Jardin")
+        self.page.locator("#brand-brief").fill("A family restaurant with a confirmed courtyard.")
+        self.page.locator("#tone").select_option("Vivid and appetizing, without exaggeration")
+        self.page.locator("#required-hashtags").fill("#CafeDuJardin #LocalTable")
+        for index in range(3):
+            self.cards.nth(index).locator("details").evaluate("element => { element.open = true; }")
+            self.cards.nth(index).locator('textarea[data-field="facts"]').fill("Confirmed photo fact " + str(index + 1))
+
+        self.page.locator("#generate-captions").click()
+        expect(self.cards.nth(0).locator('textarea[data-field="caption"]')).to_have_value("Server English caption for p1.", timeout=10000)
+        generated = [call for call in backend if call["path"].endswith("/generate-caption")]
+        self.assertEqual([call["body"]["imageId"] for call in generated], ["p3", "p2", "p1"])
+        for call in generated:
+            self.assertEqual(set(call["body"]), {"imageId", "context"})
+            context = call["body"]["context"]
+            self.assertEqual(set(context), {"accountType", "brand", "verifiedDetails", "photoFacts", "tone", "requiredHashtags", "recentCaptions"})
+            self.assertEqual(context["accountType"], "restaurant")
+            self.assertEqual(context["brand"], "Café du Jardin")
+            self.assertEqual(context["verifiedDetails"], "A family restaurant with a confirmed courtyard.")
+            self.assertEqual(context["photoFacts"], "Confirmed photo fact " + call["body"]["imageId"][1:])
+            self.assertEqual(context["tone"], "Vivid and appetizing, without exaggeration")
+            self.assertEqual(context["requiredHashtags"], ["#CafeDuJardin", "#LocalTable"])
+            self.assertLessEqual(len(context["recentCaptions"]), 3)
+            self.assertEqual(call["headers"].get("x-csrf-token"), "test-csrf")
+            self.assertIn("feed_test_session=test-browser-session", call["headers"].get("cookie", ""))
+            self.assertNotIn("authorization", call["headers"])
+            serialized = json.dumps(call["body"])
+            for forbidden in ["base64", "image_url", "gpt-", "sk-"]:
+                self.assertNotIn(forbidden, serialized)
+        self.assertEqual(generated[0]["body"]["context"]["recentCaptions"], [])
+        self.assertIn("Server English caption for p3.", generated[1]["body"]["context"]["recentCaptions"])
+        self.assertEqual(direct_vision, [])
+        self.assertFalse(any("api.openai.com" in url for url in self.requests))
+        self.assertEqual(self.page.locator("#api-key").input_value(), "")
+        expect(self.page.locator("#sync-google-doc")).to_be_enabled()
+
+    def test_17_server_caption_error_keeps_completed_work_and_retry_skips_reviewed_captions(self):
+        backend = self.load_connected_mode(openai=True, generation_statuses=[200, 503, 200, 200])
+        self.start_canva_import()
+        expect(self.cards).to_have_count(3)
+        self.page.locator("#generate-captions").click()
+        expect(self.page.locator("#status")).to_contain_text("temporarily unavailable", timeout=10000)
+        expect(self.cards.nth(2).locator('textarea[data-field="caption"]')).to_have_value("Server English caption for p3.")
+        expect(self.cards.nth(1).locator('textarea[data-field="caption"]')).to_have_value("")
+        self.cards.nth(2).locator('textarea[data-field="caption"]').fill("My reviewed restaurant caption.")
+        self.page.locator("#generate-captions").click()
+        expect(self.cards.nth(0).locator('textarea[data-field="caption"]')).to_have_value("Server English caption for p1.", timeout=10000)
+        generated = [call for call in backend if call["path"].endswith("/generate-caption")]
+        self.assertEqual([call["body"]["imageId"] for call in generated], ["p3", "p2", "p2", "p1"])
+        expect(self.cards.nth(2).locator('textarea[data-field="caption"]')).to_have_value("My reviewed restaurant caption.")
+        self.assertEqual(self.page.locator("#api-key").input_value(), "")
+        self.assertFalse(any("api.openai.com" in url for url in self.requests))
+
+    def test_18_stopping_server_generation_aborts_the_request_and_allows_resume(self):
+        backend = self.load_connected_mode(openai=True)
+        self.start_canva_import()
+        expect(self.cards).to_have_count(3)
+        self.cards.nth(2).locator('textarea[data-field="caption"]').fill("A caption reviewed before generation.")
+        self.page.evaluate("""() => {
+            window.fetchBeforeStopTest = window.fetch;
+            window.stoppedGenerationSignal = null;
+            window.fetch = function (path, options) {
+                if (String(path).endsWith('/generate-caption')) {
+                    window.stoppedGenerationSignal = options && options.signal;
+                    return new Promise((resolve, reject) => {
+                        if (!window.stoppedGenerationSignal) {
+                            reject(new Error('Missing generation AbortSignal'));
+                            return;
+                        }
+                        window.stoppedGenerationSignal.addEventListener('abort', () => {
+                            reject(new DOMException('Stopped by user', 'AbortError'));
+                        }, {once: true});
+                    });
+                }
+                return window.fetchBeforeStopTest.apply(this, arguments);
+            };
+        }""")
+        self.page.locator("#generate-captions").click()
+        self.page.wait_for_function("window.stoppedGenerationSignal !== null")
+        expect(self.page.locator("#stop-generation")).to_be_visible()
+        self.page.locator("#stop-generation").click()
+        expect(self.page.locator("#status")).to_contain_text("arrêté", timeout=10000)
+        self.assertTrue(self.page.evaluate("window.stoppedGenerationSignal.aborted"))
+        expect(self.page.locator("#generate-captions")).to_be_enabled()
+        expect(self.cards.nth(0).locator('textarea[data-field="caption"]')).to_have_value("")
+        expect(self.cards.nth(1).locator('textarea[data-field="caption"]')).to_have_value("")
+        expect(self.cards.nth(2).locator('textarea[data-field="caption"]')).to_have_value("A caption reviewed before generation.")
+        self.assertFalse(any(call["path"].endswith("/generate-caption") for call in backend))
+
+        self.page.evaluate("window.fetch = window.fetchBeforeStopTest")
+        self.page.locator("#generate-captions").click()
+        expect(self.cards.nth(0).locator('textarea[data-field="caption"]')).to_have_value("Server English caption for p1.", timeout=10000)
+        generated = [call for call in backend if call["path"].endswith("/generate-caption")]
+        self.assertEqual([call["body"]["imageId"] for call in generated], ["p2", "p1"])
+        expect(self.cards.nth(2).locator('textarea[data-field="caption"]')).to_have_value("A caption reviewed before generation.")
+
+    def test_19_leaving_native_feed_restores_browser_key_generation_for_manual_photos(self):
+        backend = self.load_connected_mode(openai=True)
+        self.start_canva_import()
+        expect(self.cards).to_have_count(3)
+        self.page.locator(".ai-settings").evaluate("element => { element.open = true; }")
+        expect(self.page.locator("#api-key")).to_be_hidden()
+        self.page.locator("#new-canva-feed").click()
+        expect(self.cards).to_have_count(0)
+        expect(self.page.locator("#server-ai-status")).to_be_visible()
+        expect(self.page.locator("#api-key")).to_be_hidden()
+        expect(self.page.locator("#ai-model")).to_be_hidden()
+        self.upload([self.images[0]])
+        expect(self.page.locator("#server-ai-status")).to_be_hidden()
+        expect(self.page.locator("#api-key")).to_be_visible()
+        expect(self.page.locator("#ai-model")).to_be_visible()
+        direct_vision = self.mock_captions()
+        self.connect_key()
+        self.page.locator("#generate-captions").click()
+        expect(self.cards.nth(0).locator('textarea[data-field="caption"]')).to_have_value(re.compile("English caption"), timeout=10000)
+        self.assertEqual(len(direct_vision), 1)
+        self.assertFalse(any(call["path"].endswith("/generate-caption") for call in backend))
 
 
 if __name__ == "__main__":

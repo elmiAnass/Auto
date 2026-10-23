@@ -28,15 +28,16 @@
         <label for="account-type">Type de compte</label><select id="account-type"><option value="hotel">Hôtel / Riad</option><option value="restaurant">Restaurant / Café</option><option value="other">Autre marque</option></select>
         <label for="order-mode">Les photos sont classées…</label><select id="order-mode"><option value="GRID">Comme la maquette du feed</option><option value="PUBLICATION">Dans l’ordre de publication</option></select>
         <p id="order-help" class="hint"></p>
+        <p id="server-ai-status" class="hint" role="status" hidden>Captions IA activées. Aucune clé à saisir.</p>
         <details class="ai-settings"><summary>Captions automatiques <span>optionnel</span></summary>
-          <p class="hint">Analyse chaque photo et adapte les captions en anglais au type de compte. Les images et le brief sont envoyés à OpenAI après votre clic. L’API est facturée sur votre compte.</p>
-          <label for="api-key">Votre clé OpenAI API</label><input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
-          <p class="hint">Conservée uniquement dans cette fenêtre. <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Obtenir une clé</a></p>
+          <p id="ai-description" class="hint">Analyse chaque photo et adapte les captions en anglais au type de compte. Les images et le brief sont envoyés à OpenAI après votre clic. L’API est facturée sur votre compte.</p>
+          <div id="browser-ai-key-controls"><label for="api-key">Votre clé OpenAI API</label><input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…">
+          <p class="hint">Conservée uniquement dans cette fenêtre. <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Obtenir une clé</a></p></div>
           <label for="brand-name">Nom de la marque <small>facultatif</small></label><input id="brand-name" maxlength="120" autocomplete="off" placeholder="Nom de l’hôtel ou du restaurant">
           <label for="brand-brief">Informations confirmées <small>facultatif</small></label><textarea id="brand-brief" rows="3" maxlength="3000" placeholder="Audience, ambiance, lieu confirmé, objectif du feed…"></textarea>
           <label for="tone">Ton des captions</label><select id="tone"><option value="Refined, warm and understated">Élégant et chaleureux</option><option value="Friendly, natural and inviting">Simple et convivial</option><option value="Vivid and appetizing, without exaggeration">Gourmand et vivant</option></select>
           <label for="required-hashtags">Hashtags de marque <small>facultatif</small></label><input id="required-hashtags" maxlength="200" placeholder="#VotreMarque">
-          <label for="ai-model">Modèle API</label><input id="ai-model" value="gpt-4.1-mini" maxlength="100" autocomplete="off">
+          <div id="browser-ai-model-controls"><label for="ai-model">Modèle API</label><input id="ai-model" value="gpt-4.1-mini" maxlength="100" autocomplete="off"></div>
         </details>
         <div class="privacy-note"><span aria-hidden="true">◈</span><p>Canva et Google demandent une connexion. L’import manuel et l’export Word restent disponibles hors connexion.</p></div>
       </aside>

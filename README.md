@@ -12,7 +12,7 @@ Récupérez le lien HTTPS attribué par Render. Le serveur le reconnaît automat
 
 Configurez ensuite les applications sur [Canva Integrations](https://www.canva.com/developers/integrations) et [Google Auth Platform](https://console.cloud.google.com/auth/overview). Les callbacks à enregistrer sont le lien HTTPS Render suivi de `/oauth/callback/canva` et `/oauth/callback/google`. Activez [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com) et [Google Docs API](https://console.cloud.google.com/apis/library/docs.googleapis.com). Créez un client Google de type **Web application** ; si l’application est en mode Testing, ajoutez votre adresse dans les utilisateurs de test.
 
-Dans **Render → service → Environment**, ajoutez `CANVA_CLIENT_ID`, `CANVA_CLIENT_SECRET`, `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET`, puis sauvegardez et redéployez. Les secrets vont uniquement dans ces champs sécurisés. Les scopes et callbacks sont détaillés plus bas.
+Dans **Render → service → Environment**, ajoutez `CANVA_CLIENT_ID`, `CANVA_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` et `OPENAI_API_KEY`, puis sauvegardez et redéployez. Les secrets vont uniquement dans ces champs sécurisés. La clé OpenAI active les captions automatiques ; elle reste côté serveur. Les scopes et callbacks sont détaillés plus bas.
 
 Ouvrez ensuite le lien Render, puis **Connecter Canva** et **Connecter Google**. Aucun déploiement Render ni accès à vos comptes n’a été effectué depuis cette conversation ; ce lien ouvre la préparation du déploiement.
 
@@ -37,7 +37,11 @@ Choisissez l’ordre avant l’import. Après création du Google Doc, cet ordre
 
 L’assistant facultatif reçoit chaque photo et le type de compte. Il doit écrire en anglais selon le sujet visible et les faits confirmés, sans inventer lieu précis, ingrédients, tarifs, équipements ou promotions. Ajoutez des précisions propres à une photo si nécessaire et relisez les propositions.
 
-La clé OpenAI est saisie dans **Captions automatiques** et reste dans la fenêtre. Elle n’est ni enregistrée dans le navigateur, ni transmise au serveur Feed Studio. Le clic de génération transmet les images et le brief à OpenAI, avec une facturation API distincte d’un abonnement ChatGPT.
+Avec `OPENAI_API_KEY` configurée sur le serveur, **Générer les captions EN** fonctionne directement après l’import Canva : aucune clé n’est demandée dans le navigateur. Le serveur transmet à OpenAI la photo de cet import et le brief, puis retourne uniquement le sujet, la caption et les hashtags. Le modèle est choisi par l’administrateur avec `OPENAI_MODEL` (par défaut `gpt-4.1-mini`). Les identifiants ne sont jamais intégrés au HTML ni exposés par `/api/session`.
+
+Le clic de génération transmet les images et le brief à OpenAI, avec une facturation sur le compte API configuré, distincte d’un abonnement ChatGPT. L’import Canva seul ne lance aucune génération. Une session doit avoir connecté Canva et Google et créé son document avant d’utiliser la clé du serveur. Une génération est autorisée à la fois par session, avec trois générations simultanées au total, 120 demandes par session et 240 demandes par serveur sur une fenêtre d’une heure. Les compteurs sont en mémoire et repartent à zéro au redémarrage.
+
+Pour l’import manuel ou la copie hors connexion, une clé personnelle peut toujours être saisie dans **Captions automatiques**. Elle reste dans la fenêtre et est envoyée directement à OpenAI, sans passer par le serveur Feed Studio.
 
 Les champs déjà envoyés dans Google Docs ne sont plus remplacés : corrigez-les directement dans le document. Si un emplacement a été modifié dans Docs avant le premier envoi, le transfert le signale sans écraser votre texte.
 
@@ -60,6 +64,8 @@ Configurez les valeurs dans des paramètres d’environnement sécurisés ou dan
 | `CANVA_CLIENT_SECRET` | Secret de l’intégration Canva, utilisé uniquement côté serveur |
 | `GOOGLE_CLIENT_ID` | Identifiant du client OAuth Google de type application Web |
 | `GOOGLE_CLIENT_SECRET` | Secret du client Google, utilisé uniquement côté serveur |
+| `OPENAI_API_KEY` | Clé OpenAI du serveur pour les captions des photos importées depuis Canva |
+| `OPENAI_MODEL` | Modèle de génération choisi côté serveur, par défaut `gpt-4.1-mini` |
 
 Dans l’intégration **Canva Connect**, activez le seul scope requis : `design:content:read`. Enregistrez le callback exact :
 
@@ -115,7 +121,7 @@ python3 tests/browser_smoke.py
 
 Les tests Node vérifient les exports DOCX, OAuth, les adaptateurs et le serveur HTTP. Un test branche les vrais adaptateurs sur le serveur avec des réponses HTTP externes simulées. Les tests Chromium utilisent de vraies images et des téléchargements DOCX ; OAuth, Canva, Google et OpenAI y sont simulés. La pagination DOCX a aussi été contrôlée par conversion LibreOffice en PDF. Ces tests ne valident ni les autorisations de vos comptes ni la qualité d’une génération IA réelle.
 
-Validation : **tests Node et 15 essais Chromium réussis**. Le démarrage réel du serveur, sa page et son état de connexion ont été vérifiés. `/api/session` distingue la présence des identifiants et la connexion effective des comptes ; ces états dépendent de la configuration privée et de la session en cours. La configuration automatique de l’origine Render est couverte par les tests du serveur.
+Validation : **154 tests Node et 19 essais Chromium réussis**. Le démarrage réel du serveur, sa page et son état de connexion ont été vérifiés. `/api/session` distingue la présence des identifiants et la connexion effective des comptes ; ces états dépendent de la configuration privée et de la session en cours. La configuration automatique de l’origine Render est couverte par les tests du serveur.
 
 Le navigateur géré ici bloque les URL `file://` ; les essais navigateur servent le même HTML par HTTP local temporaire. L’ouverture locale reste disponible uniquement pour l’import manuel et l’export Word, sans connexion Canva.
 

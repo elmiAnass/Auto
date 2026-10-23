@@ -27,12 +27,28 @@
       try {
         response = await fetch(path, {method: options.method || 'GET', credentials: 'same-origin',
           headers: headers, body: options.body ? JSON.stringify(options.body) : undefined,
-          redirect: 'error', cache: 'no-store'});
-      } catch (_) { throw new Error('Le serveur est inaccessible. Réessayez sans fermer cette fenêtre.'); }
+          redirect: 'error', cache: 'no-store', signal: options.signal});
+      } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        throw new Error('Le serveur est inaccessible. Réessayez sans fermer cette fenêtre.');
+      }
       var body;
-      try { body = await response.json(); } catch (_) { throw new Error('Réponse du serveur illisible.'); }
+      try { body = await response.json(); } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        throw new Error('Réponse du serveur illisible.');
+      }
       if (!response.ok) throw new Error(typeof body.error === 'string' ? body.error : 'Action impossible (HTTP ' + response.status + ').');
       return body;
+    }
+
+    function isServerAIAvailable() {
+      return Boolean(job && session && session.configured && session.configured.openai);
+    }
+
+    function generateCaption(imageId, context, options) {
+      if (!isServerAIAvailable()) throw new Error('La génération IA est indisponible pour ce feed.');
+      return api('/api/jobs/' + encodeURIComponent(job.id) + '/generate-caption', {method: 'POST',
+        body: {imageId: imageId, context: context}, signal: options && options.signal});
     }
 
     function documentLink(document) {
@@ -60,6 +76,14 @@
       $('new-canva-feed').disabled = busy;
       $('canva-url').disabled = busy;
       $('sync-google-doc').disabled = busy || !job || !app.getPosts().some(function (post) { return post.caption.trim() || post.hashtags.trim(); });
+      var serverAI = isServerAIAvailable() || Boolean(session && session.configured && session.configured.openai && !app.getPosts().length);
+      $('server-ai-status').hidden = !serverAI;
+      $('browser-ai-key-controls').hidden = serverAI;
+      $('browser-ai-model-controls').hidden = serverAI;
+      $('api-key').disabled = busy || serverAI;
+      $('ai-model').disabled = busy || serverAI;
+      $('ai-description').textContent = 'Analyse chaque photo et adapte les captions en anglais au type de compte. ' +
+        'Les images et le brief sont envoyés à OpenAI après votre clic.' + (serverAI ? '' : ' L’API est facturée sur votre compte.');
     }
 
     function restoreSynced(metadata) {
@@ -186,6 +210,6 @@
       message('Collez le lien du prochain design. Le document précédent reste dans Google Drive.');
     });
     init();
-    return {render: render};
+    return {render: render, isServerAIAvailable: isServerAIAvailable, generateCaption: generateCaption};
   }};
 }(window));

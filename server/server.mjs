@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { generateCaption, validateCaptionContext, CaptionError } from './captions.mjs';
 
 const require = createRequire(import.meta.url);
 const { buildDocument } = require('../web/docx.js');
@@ -39,7 +40,9 @@ export function readConfig(env = process.env) {
     canvaClientSecret: env.CANVA_CLIENT_SECRET || '',
     canvaClientAuthorization: env.CANVA_CLIENT_AUTHORIZATION || '',
     googleClientId: env.GOOGLE_CLIENT_ID || '',
-    googleClientSecret: env.GOOGLE_CLIENT_SECRET || ''
+    googleClientSecret: env.GOOGLE_CLIENT_SECRET || '',
+    openaiApiKey: env.OPENAI_API_KEY || '',
+    openaiModel: env.OPENAI_MODEL || 'gpt-4.1-mini'
   };
 }
 
@@ -166,6 +169,8 @@ export function createApp({ config = readConfig(), providers, fetchImpl = global
   const shutdown = new AbortController();
   let closed = false;
   let activeImports = 0;
+  let activeGenerations = 0;
+  let aiUsage = { since: now(), count: 0 };
   const html = readFileSync(path.join(ROOT, 'index.html'), 'utf8')
     .replace('name="feed-studio-mode" content="offline"', 'name="feed-studio-mode" content="server"');
   const ttl = config.sessionTtlMs || SESSION_TTL;
@@ -322,7 +327,7 @@ export function createApp({ config = readConfig(), providers, fetchImpl = global
       const session = sessionFor(req, res, true);
       json(res, 200, {
         serverMode: true, csrfToken: session.csrfToken,
-        configured: { canva: isConfigured('canva'), google: isConfigured('google') },
+        configured: { canva: isConfigured('canva'), google: isConfigured('google'), openai: Boolean(config.openaiApiKey) },
         connected: { canva: Boolean(session.tokens.canva), google: Boolean(session.tokens.google) },
         ...(session.latestJobId ? { latestJobId: session.latestJobId } : {})
       });
@@ -377,7 +382,7 @@ export function createApp({ config = readConfig(), providers, fetchImpl = global
       void performImport(session, job);
       return;
     }
-    match = url.pathname.match(/^\/api\/jobs\/([A-Za-z0-9_-]+)(?:\/(images|captions)(?:\/([A-Za-z0-9_-]+))?)?$/);
+    match = url.pathname.match(/^\/api\/jobs\/([A-Za-z0-9_-]+)(?:\/(images|captions|generate-caption)(?:\/([A-Za-z0-9_-]+))?)?$/);
     if (match) {
       const session = sessionFor(req, res);
       const [, id, action, imageId] = match;
@@ -389,6 +394,50 @@ export function createApp({ config = readConfig(), providers, fetchImpl = global
         if (!image) throw new HttpError(404, 'Image not found.');
         res.writeHead(200, { 'Content-Type': image.mime, 'Content-Length': image.bytes.length, 'Cache-Control': 'no-store' });
         res.end(image.bytes); return;
+      }
+      if (req.method === 'POST' && action === 'generate-caption' && !imageId) {
+        mutation(req, session);
+        if (!config.openaiApiKey) throw new HttpError(503, 'Automatic captions have not been configured by the administrator.');
+        if (!session.tokens.canva || !session.tokens.google) throw new HttpError(401, 'Connect Canva and Google before generating captions.');
+        if (job.status !== 'ready' || !job.document) throw new HttpError(409, 'Create the Google Doc before generating captions.');
+        const body = await readJson(req);
+        if (typeof body.imageId !== 'string') throw new HttpError(400, 'Choose a photo from this import.');
+        const image = job.posts.find(post => post.id === body.imageId);
+        if (!image) throw new HttpError(404, 'Image does not belong to this import.');
+        if (image.synced.caption) throw new HttpError(409, 'This caption was already sent. Edit it directly in Google Docs.');
+        try { validateCaptionContext(body.context); }
+        catch (error) {
+          if (error instanceof CaptionError) throw new HttpError(error.status, error.message);
+          throw error;
+        }
+        if (res.destroyed) return;
+        if (session.aiGenerating) throw new HttpError(409, 'A caption is already being generated.');
+        if (activeGenerations >= 3) throw new HttpError(503, 'Caption generation is busy. Try again shortly.');
+        if (!session.aiUsage || now() - session.aiUsage.since >= 3_600_000) session.aiUsage = { since: now(), count: 0 };
+        if (now() - aiUsage.since >= 3_600_000) aiUsage = { since: now(), count: 0 };
+        if (session.aiUsage.count >= 120 || aiUsage.count >= 240) throw new HttpError(429, 'The hourly caption limit was reached. Try again later.');
+        session.aiUsage.count++;
+        aiUsage.count++;
+        session.aiGenerating = true;
+        activeGenerations++;
+        const cancellation = new AbortController();
+        const cancelOnDisconnect = () => { if (!res.writableEnded) cancellation.abort(); };
+        res.once('close', cancelOnDisconnect);
+        try {
+          const draft = await generateCaption(image, body.context, {
+            apiKey: config.openaiApiKey, model: config.openaiModel || 'gpt-4.1-mini',
+            fetchImpl: linkedFetch, signal: cancellation.signal
+          });
+          json(res, 200, draft);
+        } catch (error) {
+          if (error instanceof CaptionError) throw new HttpError(error.status, error.message);
+          throw error;
+        } finally {
+          res.off('close', cancelOnDisconnect);
+          session.aiGenerating = false;
+          activeGenerations--;
+        }
+        return;
       }
       if (req.method === 'POST' && action === 'captions' && !imageId) {
         mutation(req, session);
