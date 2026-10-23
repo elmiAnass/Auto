@@ -27,7 +27,9 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4.1-mini
 ```
 
-Remplacez l’origine d’exemple par l’adresse exacte de votre page, sans chemin. Si vous utilisez les secrets Codespaces à la place d’un fichier local, configurez les mêmes noms dans les paramètres GitHub et redémarrez le Codespace pour qu’ils soient injectés.
+Remplacez l’origine d’exemple par l’adresse exacte de votre page, sans chemin. Vous pouvez aussi omettre `PUBLIC_ORIGIN` : le serveur utilise `CODESPACE_NAME`, `GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN` (ou `app.github.dev`) et le port configuré pour retrouver l’adresse Codespaces automatiquement. Une valeur `PUBLIC_ORIGIN` explicite reste prioritaire, même si elle est ancienne. Si vous utilisez les secrets Codespaces à la place d’un fichier local, configurez les mêmes noms dans les paramètres GitHub et redémarrez le Codespace pour qu’ils soient injectés.
+
+Si une action affiche **Unexpected request origin**, l’en-tête Origin reçu ne correspond pas à l’origine configurée. Le message indique l’origine attendue et l’origine reçue ; les en-têtes malformés ne sont pas recopiés. `/api/session` expose aussi `publicOrigin` pour ce diagnostic, sans exposer les identifiants. Ouvrez l’adresse configurée ou corrigez `PUBLIC_ORIGIN`, puis redémarrez le serveur et reconnectez les comptes. Si les valeurs ne correspondent toujours pas, vérifiez le contexte du navigateur ou du proxy. Les en-têtes Host et Forwarded ne sont pas utilisés pour autoriser une nouvelle origine ; les protections Origin et CSRF restent actives.
 
 ## Enregistrer les deux URL de retour
 

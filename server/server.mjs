@@ -21,10 +21,22 @@ class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
+function codespacesOrigin(env, port) {
+  if (!env.CODESPACE_NAME) return '';
+  const name = env.CODESPACE_NAME;
+  const domain = env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN || 'app.github.dev';
+  const label = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
+  if (typeof name !== 'string' || !label.test(name) || !label.test(name + '-' + port) ||
+      typeof domain !== 'string' || domain.length > 253 || !domain.split('.').every(part => label.test(part))) {
+    throw new Error('Invalid Codespaces forwarding configuration.');
+  }
+  return 'https://' + name + '-' + port + '.' + domain;
+}
+
 export function readConfig(env = process.env) {
   const port = Number(env.FEED_STUDIO_PORT || env.PORT || 3000);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid FEED_STUDIO_PORT.');
-  const publicOrigin = env.PUBLIC_ORIGIN || env.RENDER_EXTERNAL_URL || 'http://127.0.0.1:' + port;
+  const publicOrigin = env.PUBLIC_ORIGIN || env.RENDER_EXTERNAL_URL || codespacesOrigin(env, port) || 'http://127.0.0.1:' + port;
   let origin;
   try { origin = new URL(publicOrigin); } catch { throw new Error('PUBLIC_ORIGIN must be a valid origin.'); }
   const local = ['127.0.0.1', 'localhost', '[::1]'].includes(origin.hostname);
@@ -50,6 +62,15 @@ function equalSecret(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
   const left = Buffer.from(a), right = Buffer.from(b);
   return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function originLabel(value) {
+  if (value === 'null') return 'null';
+  try {
+    const parsed = new URL(value);
+    if (['http:', 'https:'].includes(parsed.protocol) && !parsed.username && !parsed.password && parsed.origin === value) return parsed.origin;
+  } catch { /* Do not echo malformed headers. */ }
+  return 'invalid';
 }
 
 function publicJob(job) {
@@ -227,7 +248,10 @@ export function createApp({ config = readConfig(), providers, fetchImpl = global
   }
 
   function mutation(req, session) {
-    if (req.headers.origin && req.headers.origin !== config.publicOrigin) throw new HttpError(403, 'Unexpected request origin.');
+    if (req.headers.origin && req.headers.origin !== config.publicOrigin) {
+      throw new HttpError(403, 'Unexpected request origin. Expected ' + config.publicOrigin +
+        '; received ' + originLabel(req.headers.origin) + '. Open the configured address or correct PUBLIC_ORIGIN and restart the server.');
+    }
     if (!equalSecret(req.headers['x-csrf-token'], session.csrfToken)) throw new HttpError(403, 'Refresh the application and retry this action.');
   }
 
@@ -326,7 +350,7 @@ export function createApp({ config = readConfig(), providers, fetchImpl = global
     if (req.method === 'GET' && url.pathname === '/api/session') {
       const session = sessionFor(req, res, true);
       json(res, 200, {
-        serverMode: true, csrfToken: session.csrfToken,
+        serverMode: true, publicOrigin: config.publicOrigin, csrfToken: session.csrfToken,
         configured: { canva: isConfigured('canva'), google: isConfigured('google'), openai: Boolean(config.openaiApiKey) },
         connected: { canva: Boolean(session.tokens.canva), google: Boolean(session.tokens.google) },
         ...(session.latestJobId ? { latestJobId: session.latestJobId } : {})

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateSync } from 'node:zlib';
 import { once } from 'node:events';
+import { request as httpRequest } from 'node:http';
 import { createApp, readConfig } from '../server/server.mjs';
 import * as realProviders from '../server/providers.mjs';
 
@@ -283,6 +284,66 @@ test('mutations require matching CSRF token and origin, and reject untrusted lin
   response = await state.post('/api/import', body);
   assert.equal(response.status, 401);
   assert.equal(state.calls.resolve.length, 0);
+});
+
+test('Codespaces mutations accept their configured origin and reject spoofed origins before provider work', async t => {
+  const state = await fixture(t);
+  state.config.publicOrigin = readConfig({ CODESPACE_NAME: 'test-workspace-abc123' }).publicOrigin;
+  const expectedOrigin = 'https://test-workspace-abc123-3000.app.github.dev';
+  assert.equal((await state.session()).publicOrigin, expectedOrigin);
+  await state.connect('canva');
+  await state.connect('google');
+  const body = { url: 'https://canva.link/example', orderMode: 'GRID' };
+  const malformedOrigins = [
+    'https://sensitive-user:sensitive-password@evil.invalid',
+    'https://evil.invalid/private-sensitive?token=sensitive-token',
+    'invalid-sensitive-origin',
+    'https://evil.invalid, ' + expectedOrigin
+  ];
+  const untrustedHeaders = [
+    { Origin: 'https://evil.invalid' },
+    { Origin: 'null' },
+    { Origin: 'http://test-workspace-abc123-3000.app.github.dev' },
+    { Origin: expectedOrigin + ':8443' },
+    { Origin: 'https://evil.invalid', Host: 'evil.invalid' },
+    { Origin: 'https://evil.invalid', 'X-Forwarded-Host': 'evil.invalid', 'X-Forwarded-Proto': 'https' },
+    { Origin: 'https://evil.invalid', Forwarded: 'host=evil.invalid;proto=https' },
+    ...malformedOrigins.map(Origin => ({ Origin }))
+  ];
+  for (const headers of untrustedHeaders) {
+    const response = await new Promise((resolve, reject) => {
+      const request = httpRequest(state.base + '/api/import', {
+        method: 'POST', headers: {
+          Cookie: state.cookie, 'Content-Type': 'application/json', 'X-CSRF-Token': state.csrf, ...headers
+        }
+      }, resolve);
+      request.on('error', reject);
+      request.end(JSON.stringify(body));
+    });
+    let responseBody = '';
+    for await (const chunk of response) responseBody += chunk;
+    assert.equal(response.statusCode, 403, JSON.stringify(headers));
+    const error = JSON.parse(responseBody).error;
+    assert.match(error, /Unexpected request origin/);
+    assert.ok(error.includes('Expected ' + expectedOrigin));
+    if (malformedOrigins.includes(headers.Origin)) {
+      assert.match(error, /; received invalid\./);
+      assert.ok(!error.includes(headers.Origin));
+      assert.ok(!error.includes('sensitive'));
+    }
+  }
+  const denied = await state.post('/api/import', body, { Origin: expectedOrigin, 'X-CSRF-Token': 'incorrect' });
+  assert.equal(denied.status, 403);
+  assert.equal(state.calls.resolve.length, 0);
+  assert.equal(state.calls.export.length, 0);
+  assert.equal(state.calls.uploads.length, 0);
+
+  const accepted = await state.post('/api/import', body, { Origin: expectedOrigin });
+  assert.equal(accepted.status, 202, JSON.stringify(await accepted.clone().json()));
+  const job = await state.waitJob((await accepted.json()).jobId);
+  assert.equal(job.status, 'ready', job.error);
+  assert.equal(state.calls.resolve.length, 1);
+  assert.equal(state.calls.uploads.length, 1);
 });
 
 test('full GRID import produces a real DOCX in reverse publication order and a native Google Doc', async t => {
@@ -727,6 +788,51 @@ test('Render supplies the OAuth origin automatically while explicit configuratio
     PUBLIC_ORIGIN: 'https://studio.example.com'
   }).publicOrigin, 'https://studio.example.com');
   assert.throws(() => readConfig({ RENDER_EXTERNAL_URL: 'http://untrusted.example.com' }), /PUBLIC_ORIGIN/);
+});
+
+test('Codespaces supplies its forwarded HTTPS origin using the selected application port', () => {
+  const codespace = { CODESPACE_NAME: 'test-workspace-abc123' };
+  assert.equal(readConfig(codespace).publicOrigin, 'https://test-workspace-abc123-3000.app.github.dev');
+  assert.equal(readConfig({ ...codespace, PORT: '4000' }).publicOrigin, 'https://test-workspace-abc123-4000.app.github.dev');
+  const configured = readConfig({
+    ...codespace, GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: 'preview.example.com',
+    PORT: '4000', FEED_STUDIO_PORT: '4173'
+  });
+  assert.equal(configured.publicOrigin, 'https://test-workspace-abc123-4173.preview.example.com');
+  assert.equal(configured.port, 4173);
+  assert.equal(readConfig({ GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: 'preview.example.com' }).publicOrigin,
+    'http://127.0.0.1:3000');
+});
+
+test('explicit and Render origins take precedence over Codespaces runtime configuration', () => {
+  const codespace = {
+    CODESPACE_NAME: 'test-workspace-abc123',
+    GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: 'app.github.dev'
+  };
+  assert.equal(readConfig({ ...codespace, PUBLIC_ORIGIN: 'https://studio.example.com/' }).publicOrigin,
+    'https://studio.example.com');
+  assert.equal(readConfig({ ...codespace, RENDER_EXTERNAL_URL: 'https://feed-studio-example.onrender.com' }).publicOrigin,
+    'https://feed-studio-example.onrender.com');
+  assert.equal(readConfig({
+    ...codespace, PUBLIC_ORIGIN: 'https://studio.example.com',
+    RENDER_EXTERNAL_URL: 'https://feed-studio-example.onrender.com'
+  }).publicOrigin, 'https://studio.example.com');
+  assert.equal(readConfig({ CODESPACE_NAME: '../invalid', PUBLIC_ORIGIN: 'https://studio.example.com' }).publicOrigin,
+    'https://studio.example.com');
+});
+
+test('Codespaces origin configuration rejects malformed names and forwarding domains', () => {
+  for (const name of ['../workspace', 'workspace/path', 'workspace@evil.invalid', 'workspace:3000',
+    'workspace?x=1', 'workspace#fragment', 'workspace_name', '-workspace', 'workspace-', 'a'.repeat(64)]) {
+    assert.throws(() => readConfig({ CODESPACE_NAME: name }), /Codespaces/, name);
+  }
+  for (const domain of ['https://app.github.dev', 'app.github.dev/path', 'user@app.github.dev',
+    'app.github.dev:443', 'app.github.dev?x=1', 'app.github.dev#fragment', '.app.github.dev',
+    'app..github.dev', '-app.github.dev', 'app_.github.dev', 'a'.repeat(64) + '.github.dev']) {
+    assert.throws(() => readConfig({
+      CODESPACE_NAME: 'test-workspace-abc123', GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: domain
+    }), /Codespaces/, domain);
+  }
 });
 
 test('real adapters and HTTP backend cooperate across OAuth, Canva export, native Drive import and caption updates', async t => {

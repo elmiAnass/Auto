@@ -65,7 +65,7 @@ Configurez les valeurs dans des paramètres d’environnement sécurisés ou dan
 
 | Nom | Usage |
 | --- | --- |
-| `PUBLIC_ORIGIN` | Origine HTTPS publique du serveur, sans chemin ; facultatif sur Render qui fournit `RENDER_EXTERNAL_URL` |
+| `PUBLIC_ORIGIN` | Origine HTTPS publique du serveur, sans chemin ; facultatif sur Render et Codespaces dont les variables de démarrage fournissent l’origine |
 | `CANVA_CLIENT_ID` | Identifiant de l’intégration Canva Connect |
 | `CANVA_CLIENT_SECRET` | Secret de l’intégration Canva, utilisé uniquement côté serveur |
 | `GOOGLE_CLIENT_ID` | Identifiant du client OAuth Google de type application Web |
@@ -127,7 +127,7 @@ python3 tests/browser_smoke.py
 
 Les tests Node vérifient les exports DOCX, OAuth, les adaptateurs et le serveur HTTP. Un test branche les vrais adaptateurs sur le serveur avec des réponses HTTP externes simulées. Les tests Chromium utilisent de vraies images et des téléchargements DOCX ; OAuth, Canva, Google et OpenAI y sont simulés. La pagination DOCX a aussi été contrôlée par conversion LibreOffice en PDF. Ces tests ne valident ni les autorisations de vos comptes ni la qualité d’une génération IA réelle.
 
-Validation : **tests Node et 19 essais Chromium réussis**. Le démarrage réel du serveur, sa page et son état de connexion ont été vérifiés. `/api/session` distingue la présence des identifiants et la connexion effective des comptes ; ces états dépendent de la configuration privée et de la session en cours. La configuration automatique de l’origine Render est couverte par les tests du serveur.
+Validation : **tests Node et 19 essais Chromium réussis**. Le démarrage réel du serveur, sa page et son état de connexion ont été vérifiés. `/api/session` distingue la présence des identifiants et la connexion effective des comptes ; ces états dépendent de la configuration privée et de la session en cours. La configuration automatique de l’origine Render et Codespaces est couverte par les tests du serveur.
 
 Le navigateur géré ici bloque les URL `file://` ; les essais navigateur servent le même HTML par HTTP local temporaire. L’ouverture locale reste disponible uniquement pour l’import manuel et l’export Word, sans connexion Canva.
 
